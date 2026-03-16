@@ -1,0 +1,363 @@
+---
+title: "Impacto da Aposentadoria no Mercado de Trabalho"
+subtitle: "Uma Réplica de um estudo realizado em 2019 usando RDD Fuzzy"
+author: "João Vitor Vasconcelos Lima"
+date: last-modified
+lang: pt
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    number-sections: true
+    code-fold: true
+    self-contained: true
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(rdrobust)
+library(gt)
+library(knitr)
+
+update_geom_defaults("line", list(linewidth = 1.5))
+
+update_geom_defaults("point", list(size = 2))
+
+theme_set(theme_minimal(base_size = 14))
+```
+
+
+## Introdução:
+
+Este relatório apresenta a replicação do estudo feito por Gustavo Marcos Szniter Mentlik, Naercio Menezes-Filho e Bruno Kawaoka Komatsu, disponível em: [APOSENTADORIA E MERCADO DE TRABALHO: UMA ANÁLISE USANDO REGRESSÃO DESCONTÍNUA](https://repositorio.ipea.gov.br/server/api/core/bitstreams/be9c936c-4d49-4234-a915-4213d8a73bdc/content)., que analisa como a concessão de aposentadoria no Brasil afeta o comportamento dos indivíduos no mercado de trabalho. A análise foca na descontinuidade das regras de idade mínima do Regime Geral de Previdência Social (RGPS)
+
+## Tratamento inicial dos dados:
+
+A primeira parte do trabalho foi transformar a [PNAD 2014](https://centrodametropole.fflch.usp.br/pt-br/node/8896) num formato mais fácil de trabalhar:
+
+```{r}
+#| eval: false
+#| echo: true
+
+
+arquivo_dados <- "dados_PNAD_2014/PNAD 2014/Dados/PES2014.txt" 
+
+dic_pnad <- fwf_positions(
+  start = c(5, 18, 19, 21, 23, 530, 154, 682, 767),
+  end   = c(6, 18, 20, 22, 26, 531, 154, 682, 767),
+  col_names = c(
+    "UF",
+    "SEXO",
+    "DIA_NASC",
+    "MES_NASC",
+    "ANO_NASC",
+    "RECEBE_APOSENTADORIA",
+    "TRABALHOU_SEMANA",
+    "CONDICAO_ATIVIDADE",
+    "SITUACAO_CENSITARIA"
+  )
+)
+
+dados_seguros <- read_fwf(
+  file = arquivo_dados,
+  col_positions = dic_pnad,
+  col_types = cols(.default = col_double())
+)
+
+saveRDS(dados_seguros, "pnad2014.rds")
+```
+
+
+Para fins de replicar o experimento esses passos podem ser ignorados pois disponibilizei os dados que usei através do [Zenodo](https://zenodo.org/records/19056769) 
+
+## Carregamento e preparação:
+
+```{r}
+download.file(
+  "https://zenodo.org/records/19056769/files/pnad2014.rds",
+  "pnad2014.rds",
+  mode = "wb"
+) # Faz o download do arquivo que disponibilizei  
+
+pnad <- readRDS("pnad2014.rds")
+
+pnad_final <- pnad %>%
+  mutate(
+    across(c(ANO_NASC, MES_NASC, DIA_NASC), as.numeric),
+    DATA_NASCIMENTO = make_date(year = ANO_NASC, month = MES_NASC, day = DIA_NASC),
+    DATA_REFERENCIA = as.Date("2014-09-27"),
+    IDADE_CONTINUA = as.numeric(difftime(DATA_REFERENCIA, DATA_NASCIMENTO, units = "days")) / 365.25,
+    RECEBE_APOSENTADORIA = replace_na(RECEBE_APOSENTADORIA, 0),
+    APOSENTADO = if_else(RECEBE_APOSENTADORIA == 1, 1, 0),
+    OCUPADO = if_else(TRABALHOU_SEMANA == 1, 1, 0),
+    ATIVO = if_else(CONDICAO_ATIVIDADE == 1, 1, 0),
+    HOMEM = if_else(SEXO == 2, 1, 0),
+    RURAL = if_else(SITUACAO_CENSITARIA >= 4, 1, 0)
+  ) %>%
+  filter(
+    !is.na(IDADE_CONTINUA),
+    IDADE_CONTINUA >= 40,
+    IDADE_CONTINUA <= 100,
+    !is.na(DATA_NASCIMENTO)
+  ) %>%
+  drop_na(OCUPADO)
+
+config_grupos <- list(
+  list(nome = "Homens Urbanos", h_sexo = 1, r = 0, corte = 65),
+  list(nome = "Mulheres Urbanas", h_sexo = 0, r = 0, corte = 60),
+  list(nome = "Homens Rurais", h_sexo = 1, r = 1, corte = 60),
+  list(nome = "Mulheres Rurais", h_sexo = 0, r = 1, corte = 55)
+)
+```
+
+
+## Modelos de regressão:
+
+```{r}
+rodar_replica_completa <- function(g) {
+  df_sub <- pnad_final %>% filter(HOMEM == g$h_sexo, RURAL == g$r)
+  
+  # 1º Estágio: Salto na Aposentadoria
+  res_1st <- rdrobust(
+    y = df_sub$APOSENTADO,
+    x = df_sub$IDADE_CONTINUA,
+    c = g$corte
+  )
+  
+  # 2º Estágio (Fuzzy): Efeito Causal na Ocupação
+  res_2nd <- rdrobust(
+    y = df_sub$OCUPADO,
+    x = df_sub$IDADE_CONTINUA,
+    c = g$corte,
+    fuzzy = df_sub$APOSENTADO
+  )
+  
+  data.frame(
+    Grupo = g$nome,
+    FS_Coef = round(res_1st$coef["Conventional", 1], 3),
+    FS_Se = round(res_1st$se["Conventional", 1], 3),
+    FS_Pval = res_1st$pv["Conventional", 1],
+    SS_Coef = round(res_2nd$coef["Conventional", 1], 3),
+    SS_Se = round(res_2nd$se["Conventional", 1], 3),
+    SS_Pval = res_2nd$pv["Conventional", 1],
+    N_eff = res_2nd$N_h[1] + res_2nd$N_h[2]
+  )
+}
+```
+
+## Execução:
+
+```{r}
+tabela_completa <- map_df(config_grupos, rodar_replica_completa)
+
+tabela_exibicao <- tabela_completa %>%
+  mutate(
+    sig1 = case_when(FS_Pval < 0.01 ~ "***", FS_Pval < 0.05 ~ "**", FS_Pval < 0.1 ~ "*", TRUE ~ ""),
+    sig2 = case_when(SS_Pval < 0.01 ~ "***", SS_Pval < 0.05 ~ "**", SS_Pval < 0.1 ~ "*", TRUE ~ ""),
+    
+    `1º Estágio (Aposentadoria)` = paste0("**", FS_Coef, "**", sig1, "<br>(", FS_Se, ")"),
+    `2º Estágio (Ocupação)`      = paste0("**", SS_Coef, "**", sig2, "<br>(", SS_Se, ")"),
+    Observações = as.character(N_eff)
+  ) %>%
+  select(Grupo, `1º Estágio (Aposentadoria)`, `2º Estágio (Ocupação)`, Observações) %>%
+  pivot_longer(-Grupo, names_to = "Métrica", values_to = "Valor") %>%
+  pivot_wider(names_from = Grupo, values_from = Valor)
+
+tabela_exibicao %>%
+  gt() %>%
+  fmt_markdown(columns = everything()) %>%
+  tab_header(
+    title = "Resultados da Regressão Descontínua (Fuzzy RDD)",
+    subtitle = "Replicação baseada em Mentlik, Menezes-Filho e Komatsu (2019)"
+  ) %>%
+  cols_align(align = "center", columns = -Métrica) %>%
+  tab_source_note(
+    source_note = "Nota: Erros padrão robustos entre parênteses. Significância: *** p < 0.01, ** p < 0.05, * p < 0.1."
+  ) %>%
+  tab_options(
+    table.width = pct(100),
+    column_labels.font.weight = "bold"
+  )
+```
+
+## Gráficos - 1º Estágio (Aposentadoria):
+
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_h_rural <- pnad_final %>% filter(HOMEM == 1, RURAL == 1)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_h_rural$APOSENTADO,
+      x = dados_h_rural$IDADE_CONTINUA,
+      c = 60,
+      p = 4, 
+      title = "Painel 6A - Homens (áreas rurais)",
+      y.label = "Proporção de Aposentados",
+      x.label = "Idade Contínua",
+      col.lines = "orange"
+    )
+  ))
+```
+
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_m_rural <- pnad_final %>% filter(HOMEM == 0, RURAL == 1)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_m_rural$APOSENTADO,
+      x = dados_m_rural$IDADE_CONTINUA,
+      c = 55,
+      p = 4,
+      title = "Painel 6B - Mulheres (áreas rurais)",
+      y.label = "Proporção de Aposentados",
+      x.label = "Idade Contínua",
+      col.lines = "red"
+    )
+  ))
+```
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_h_urbano <- pnad_final %>% filter(HOMEM == 1, RURAL == 0)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_h_urbano$APOSENTADO,
+      x = dados_h_urbano$IDADE_CONTINUA,
+      c = 65,
+      p = 4,
+      title = "Painel 6C - Homens (áreas urbanas)",
+      y.label = "Proporção de Aposentados",
+      x.label = "Idade Contínua",
+      col.lines = "orange"
+    )
+  ))
+```
+
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_m_urbana <- pnad_final %>% filter(HOMEM == 0, RURAL == 0)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_m_urbana$APOSENTADO,
+      x = dados_m_urbana$IDADE_CONTINUA,
+      c = 60,
+      p = 4,
+      title = "Painel 6D - Mulheres (áreas urbanas)",
+      y.label = "Proporção de Aposentados",
+      x.label = "Idade Contínua",
+      col.lines = "red"
+    )
+  ))
+```
+
+## Gráficos - 2º Estágio (Ocupação):
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_h_rural <- pnad_final %>% filter(HOMEM == 1, RURAL == 1)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_h_rural$OCUPADO,
+      x = dados_h_rural$IDADE_CONTINUA,
+      c = 60,
+      p = 4, 
+      title = "Painel 7A - Homens (áreas rurais)",
+      y.label = "Ocupação",
+      x.label = "Idade Contínua",
+      col.lines = "orange"
+    )
+  ))
+```
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_m_rural <- pnad_final %>% filter(HOMEM == 0, RURAL == 1)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_m_rural$OCUPADO,
+      x = dados_m_rural$IDADE_CONTINUA,
+      c = 55,
+      p = 4, 
+      title = "Painel 7B - Mulheres (áreas rurais)",
+      y.label = "Ocupação",
+      x.label = "Idade Contínua",
+      col.lines = "red"
+    )
+  ))
+```
+
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_h_urbano <- pnad_final %>% filter(HOMEM == 1, RURAL == 0)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_h_urbano$OCUPADO,
+      x = dados_h_urbano$IDADE_CONTINUA,
+      c = 65,
+      p = 4,
+      title = "Painel 7C - Homens (áreas urbanas)",
+      y.label = "Ocupação",
+      x.label = "Idade Contínua",
+      col.lines = "orange"
+    )
+  ))
+```
+
+
+```{r}
+
+#| warning: false
+#| message: false
+
+  dados_m_urbana <- pnad_final %>% filter(HOMEM == 0, RURAL == 0)
+  
+  invisible(capture.output(
+    rdplot(
+      y = dados_m_urbana$OCUPADO,
+      x = dados_m_urbana$IDADE_CONTINUA,
+      c = 60,
+      p = 4,
+      title = "Painel 7D - Mulheres (áreas urbanas)",
+      y.label = "Ocupação",
+      x.label = "Idade Contínua",
+      col.lines = "red"
+    )
+  ))
+```
