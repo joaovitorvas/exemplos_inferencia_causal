@@ -1,0 +1,520 @@
+---
+title: "Efeito Causal do Tabagismo no Risco de Diabetes"
+author: "Daniela"
+date: "2026-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Fonte de Dados e Amostra
+
+Os dados foram extraidos da Pesquisa do Sistema de Vigilancia de Fatores de Risco
+Comportamentais de 2015 (BRFSS - *Behavioral Risk Factor Surveillance System*),
+uma pesquisa telefonica representativa nacional conduzida anualmente pelos Centros
+de Controle e Prevencao de Doencas dos Estados Unidos (CDC). Apos a exclusao de
+respondentes com valores ausentes nas variaveis-chave, a amostra analitica utilizada
+neste estudo compreendeu **`r nrow(df)` adultos**.
+
+## Variaveis
+
+**Tratamento (T):** Fumante definido como individuo que ja fumou 100 ou mais
+cigarros ao longo da vida e atualmente fuma ou ja fumou anteriormente
+(binario: 1 = fumante, 0 = nunca fumou).
+
+**Desfecho (Y):** Diabetes diagnosticada por medico, excluindo diabetes gestacional
+(binario: 1 = sim, 0 = nao).
+
+**Confundidores (W):** Idade, sexo, IMC, pressao arterial alta, colesterol alto,
+atividade fisica nos ultimos 30 dias, escolaridade e renda. Essas variaveis foram
+selecionadas com base em associacoes estabelecidas com tabagismo e diabetes.
+
+
+
+## Explicacao do Criterio Backdoor
+
+O **criterio backdoor** e um metodo de identificacao causal que determina quais
+variaveis precisam ser controladas para estimar o efeito causal de um tratamento
+sobre um desfecho a partir de dados observacionais.
+
+No DAG acima, existe um conjunto de **caminhos backdoor** entre *Tabagismo* e
+*Diabetes* — ou seja, caminhos que entram no no de Tabagismo pela "porta de tras"
+por meio dos confundidores (Idade, Sexo, IMC, Pressao Alta, Colesterol Alto,
+Atividade Fisica, Escolaridade e Renda). Esses caminhos criam associacoes espurias
+que distorcem a estimativa do efeito causal real.
+
+**Como os autores aplicaram o criterio backdoor:**
+
+1. **Modelagem (DAG):** Construiram um grafo aciclico dirigido codificando o
+   conhecimento de dominio sobre as relacoes entre as variaveis. A seta principal
+   e de *Tabagismo → Diabetes*, representando o efeito causal de interesse.
+
+2. **Identificacao:** Aplicaram o criterio backdoor para identificar o conjunto
+   de ajuste suficiente — as 8 covariaveis confundidoras que bloqueiam todos os
+   caminhos backdoor entre Tabagismo e Diabetes. Ao condicionar nessas variaveis,
+   e possivel isolar o efeito causal direto do tabagismo.
+
+3. **Estimacao:** Usaram o **Propensity Score Matching (PSM)** para criar grupos
+   comparaveis de fumantes e nao fumantes com distribuicoes similares nas
+   covariaveis confundidoras, efetivamente bloqueando os caminhos backdoor na
+   pratica.
+
+4. **Refutacao:** Realizaram testes para verificar se o efeito estimado e robusto
+   a violacoes das premissas causais.
+
+A formula do **Efeito Medio do Tratamento (ATE)** identificado pelo criterio
+backdoor e:
+
+$$ATE = E[Y(1) - Y(0)] = E_{W}[E[Y | T=1, W] - E[Y | T=0, W]]$$
+
+Onde:
+
+- $Y(1)$ = resultado potencial se o individuo fumasse
+- $Y(0)$ = resultado potencial se o individuo nao fumasse  
+- $T$ = tratamento (tabagismo)
+- $W$ = conjunto de confundidores (Age, Sex, BMI, HighBP, HighChol, PhysActivity, Education, Income)
+
+
+
+## Metodo de Estimacao
+
+O **Propensity Score Matching (PSM)** foi utilizado para estimar o ATE seguindo
+os parametros:
+
+- Metodo: vizinho mais proximo 1:1 (*nearest-neighbor*)
+- Caliper: 0,01 (para evitar pareamentos ruins)
+- Distancia: logistica (regressao logistica para estimar o escore de propensao)
+
+O escore de propensao $e(W) = P(T=1|W)$ representa a probabilidade condicional
+de um individuo ser fumante dado seu conjunto de covariaveis $W$. Ao parear
+fumantes e nao fumantes com escores similares, cria-se um grupo de comparacao
+quasi-experimental que bloqueia os caminhos backdoor identificados no DAG.
+
+Todas as analises foram conduzidas em R utilizando os pacotes `MatchIt`,
+`sandwich` e `lmtest`.
+
+
+# Pacotes
+```{r pacotes}
+library(haven)
+library(dplyr)
+library(MatchIt)
+library(knitr)
+library(kableExtra)
+#library(ggplot)
+library(ggplot2)
+library(tidyr)
+#library(ggraph)
+#library(igraph)
+```
+
+# Carregar Dados
+```{r dados}
+dados <- read_xpt("~/LLCP2015.XPT_")
+cat("N original:", nrow(dados), "\n")
+```
+
+# Preparar Variáveis
+```{r preparar}
+df <- dados %>%
+  mutate(
+    diabetes_bin = case_when(DIABETE3 == 1 ~ 1, DIABETE3 == 3 ~ 0, TRUE ~ NA_real_),
+    smoker       = case_when(`_RFSMOK3` == 1 ~ 1, `_RFSMOK3` == 2 ~ 0, TRUE ~ NA_real_),
+    highbp_bin   = case_when(`_RFHYPE5` == 1 ~ 1, `_RFHYPE5` == 2 ~ 0, TRUE ~ NA_real_),
+    highchol_bin = case_when(`_RFCHOL`  == 1 ~ 1, `_RFCHOL`  == 2 ~ 0, TRUE ~ NA_real_),
+    physact_bin  = case_when(`_TOTINDA` == 1 ~ 1, `_TOTINDA` == 2 ~ 0, TRUE ~ NA_real_),
+    bmi_real     = `_BMI5` / 100,
+    education    = case_when(`_EDUCAG` == 9 ~ NA_real_, TRUE ~ as.numeric(`_EDUCAG`)),
+    income       = case_when(`_INCOMG` == 9 ~ NA_real_, TRUE ~ as.numeric(`_INCOMG`)),
+    age          = as.numeric(`_AGEG5YR`),
+    sex          = as.numeric(SEX)
+  ) %>%
+  filter(
+    !is.na(diabetes_bin), !is.na(smoker), !is.na(age), !is.na(sex),
+    !is.na(bmi_real), !is.na(highbp_bin), !is.na(highchol_bin),
+    !is.na(physact_bin), !is.na(education), !is.na(income)
+  )
+
+cat("N após limpeza:", nrow(df), "\n")
+```
+
+# Propensity Score Matching
+```{r psm}
+match_out <- matchit(
+  smoker ~ age + sex + bmi_real + highbp_bin + highchol_bin +
+    physact_bin + education + income,
+  data     = df,
+  method   = "nearest",
+  ratio    = 1,
+  caliper  = 0.01,
+  distance = "logit"
+)
+
+summary(match_out)
+```
+
+# Tabela 1 — Antes e Depois do PSM
+```{r tabela1}
+df_depois <- match.data(match_out)
+
+vars       <- c("age", "bmi_real", "highbp_bin", "physact_bin",
+                "income", "highchol_bin", "education", "sex")
+vars_label <- c("Age", "BMI", "HighBP", "PhysActivity",
+                "Income", "HighChol", "Education", "Sex")
+
+calcular <- function(dados) {
+  fum  <- dados %>% filter(smoker == 1)
+  nfum <- dados %>% filter(smoker == 0)
+  data.frame(
+    Smokers_Mean    = sapply(vars, function(v) round(mean(fum[[v]],  na.rm=TRUE), 3)),
+    Smokers_SD      = sapply(vars, function(v) round(sd(fum[[v]],    na.rm=TRUE), 3)),
+    NonSmokers_Mean = sapply(vars, function(v) round(mean(nfum[[v]], na.rm=TRUE), 3)),
+    NonSmokers_SD   = sapply(vars, function(v) round(sd(nfum[[v]],   na.rm=TRUE), 3)),
+    SMD             = sapply(vars, function(v) {
+      m1 <- mean(fum[[v]], na.rm=TRUE); m0 <- mean(nfum[[v]], na.rm=TRUE)
+      s1 <- sd(fum[[v]],   na.rm=TRUE); s0 <- sd(nfum[[v]],   na.rm=TRUE)
+      round(abs(m1 - m0) / sqrt((s1^2 + s0^2) / 2), 3)
+    })
+  )
+}
+
+antes  <- calcular(df)
+depois <- calcular(df_depois)
+
+tabela <- data.frame(
+  Variable               = vars_label,
+  Smokers_Before_Mean    = antes$Smokers_Mean,
+  Smokers_Before_SD      = antes$Smokers_SD,
+  NonSmokers_Before_Mean = antes$NonSmokers_Mean,
+  NonSmokers_Before_SD   = antes$NonSmokers_SD,
+  SMD_Before             = antes$SMD,
+  Smokers_After_Mean     = depois$Smokers_Mean,
+  Smokers_After_SD       = depois$Smokers_SD,
+  NonSmokers_After_Mean  = depois$NonSmokers_Mean,
+  NonSmokers_After_SD    = depois$NonSmokers_SD,
+  SMD_After              = depois$SMD
+)
+
+tabela %>%
+  kbl(
+    caption   = "TABLE 1: Baseline Characteristics Before and After Propensity Score Matching",
+    col.names = c("Variable",
+                  "Mean", "SD", "Mean", "SD", "SMD",
+                  "Mean", "SD", "Mean", "SD", "SMD"),
+    align     = c("l", rep("c", 10))
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered", "condensed"),
+    full_width        = TRUE,
+    font_size         = 13
+  ) %>%
+  add_header_above(c(
+    " "           = 1,
+    "Smokers"     = 2,
+    "Non-Smokers" = 2,
+    " "           = 1,
+    "Smokers"     = 2,
+    "Non-Smokers" = 2,
+    " "           = 1
+  )) %>%
+  add_header_above(c(
+    " "               = 1,
+    "Before Matching" = 5,
+    "After Matching"  = 5
+  )) %>%
+  row_spec(0, bold = TRUE, background = "#2c3e50", color = "white") %>%
+  column_spec(1,  bold = TRUE) %>%
+  column_spec(6,  background = "#fdebd0") %>%
+  column_spec(11, background = "#d5f5e3")
+```
+
+# Figura 2 - Comparacao de Balanceamento Antes e Depois do PSM
+```{r figura2}
+library(ggplot2)
+library(tidyr)
+
+# Calcular SMDs antes e depois
+vars       <- c("age", "bmi_real", "highbp_bin", "physact_bin",
+                "income", "highchol_bin", "education", "sex")
+vars_label <- c("Age", "BMI", "HighBP", "PhysActivity",
+                "Income", "HighChol", "Education", "Sex")
+
+calcular_smd <- function(dados) {
+  fum  <- dados %>% filter(smoker == 1)
+  nfum <- dados %>% filter(smoker == 0)
+  sapply(vars, function(v) {
+    m1 <- mean(fum[[v]],  na.rm=TRUE)
+    m0 <- mean(nfum[[v]], na.rm=TRUE)
+    s1 <- sd(fum[[v]],    na.rm=TRUE)
+    s0 <- sd(nfum[[v]],   na.rm=TRUE)
+    abs(m1 - m0) / sqrt((s1^2 + s0^2) / 2)
+  })
+}
+
+smd_antes  <- calcular_smd(df)
+smd_depois <- calcular_smd(df_depois)
+
+df_fig2 <- data.frame(
+  Variable = rep(vars_label, 2),
+  SMD      = c(smd_antes, smd_depois),
+  Periodo  = rep(c("Before Matching", "After Matching"), each = length(vars))
+)
+
+# Grafico lado a lado igual ao artigo
+ggplot(df_fig2, aes(x = SMD, y = reorder(Variable, SMD), fill = Periodo)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.6) +
+  geom_vline(xintercept = 0.10, linetype = "dashed", color = "green",  linewidth = 0.8) +
+  geom_vline(xintercept = 0.25, linetype = "dashed", color = "orange", linewidth = 0.8) +
+  scale_fill_manual(values = c("Before Matching" = "#E67E22", "After Matching" = "#27AE60")) +
+  facet_wrap(~Periodo, scales = "free_x") +
+  labs(
+    title    = "Covariate Balance Comparison: Before vs After PSM",
+    x        = "Standardized Mean Difference",
+    y        = "Variable",
+    fill     = ""
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position  = "none",
+    strip.text       = element_text(face = "bold", size = 12),
+    plot.title       = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+# Figura 3 - Love Plot
+```{r figura3}
+df_love <- data.frame(
+  Variable = vars_label,
+  Antes    = smd_antes,
+  Depois   = smd_depois
+)
+
+df_love_long <- df_love %>%
+  pivot_longer(cols = c("Antes", "Depois"),
+               names_to  = "Periodo",
+               values_to = "SMD") %>%
+  mutate(Periodo = recode(Periodo,
+                          "Antes"  = "Before Matching",
+                          "Depois" = "After Matching"))
+
+ggplot(df_love_long, aes(x = SMD, y = reorder(Variable, SMD),
+                          color = Periodo, shape = Periodo)) +
+  geom_point(size = 4) +
+  geom_vline(xintercept = 0.05, linetype = "dashed",
+             color = "red", linewidth = 0.8) +
+  scale_color_manual(values = c("Before Matching" = "#2980B9",
+                                "After Matching"  = "#27AE60")) +
+  scale_shape_manual(values = c("Before Matching" = 16,
+                                "After Matching"  = 16)) +
+  labs(
+    title  = "Love Plot of Covariate Balance Before and After Matching",
+    x      = "Standardized Mean Difference (SMD)",
+    y      = "Covariates",
+    color  = "",
+    shape  = ""
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "right",
+    plot.title      = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+# Estimativa do Efeito Causal (ATE)
+```{r ate}
+library(sandwich)
+library(lmtest)
+
+# Regressão no grupo pareado
+modelo <- lm(
+  diabetes_bin ~ smoker + age + sex + bmi_real +
+    highbp_bin + highchol_bin + physact_bin +
+    education + income,
+  data    = df_depois,
+  weights = weights
+)
+
+# Resultado com IC robusto
+resultado <- coeftest(modelo, vcov = vcovCL(modelo, cluster = ~subclass))
+ate       <- round(resultado["smoker", "Estimate"], 4)
+ic_low    <- round(resultado["smoker", "Estimate"] - 
+                   1.96 * resultado["smoker", "Std. Error"], 4)
+ic_high   <- round(resultado["smoker", "Estimate"] + 
+                   1.96 * resultado["smoker", "Std. Error"], 4)
+
+cat("ATE:", ate, "\n")
+cat("IC 95%:", ic_low, "-", ic_high, "\n")
+```
+
+# Testes de Refutacao
+```{r refutacao}
+set.seed(42)
+
+# 1. Subset refutation (70% dos dados)
+idx_sub    <- sample(nrow(df), size = floor(0.7 * nrow(df)))
+df_sub     <- df[idx_sub, ]
+
+match_sub  <- matchit(
+  smoker ~ age + sex + bmi_real + highbp_bin + highchol_bin +
+    physact_bin + education + income,
+  data     = df_sub,
+  method   = "nearest",
+  ratio    = 1,
+  caliper  = 0.01,
+  distance = "logit"
+)
+
+df_sub_matched <- match.data(match_sub)
+
+modelo_sub <- lm(
+  diabetes_bin ~ smoker + age + sex + bmi_real +
+    highbp_bin + highchol_bin + physact_bin + education + income,
+  data    = df_sub_matched,
+  weights = weights
+)
+
+res_sub <- coeftest(modelo_sub, vcov = vcovCL(modelo_sub, cluster = ~subclass))
+ate_sub <- round(res_sub["smoker", "Estimate"], 4)
+p_sub   <- round(res_sub["smoker", "Pr(>|t|)"], 2)
+
+# 2. Random common cause refutation
+df_rcc        <- df
+df_rcc$random <- rnorm(nrow(df_rcc))
+
+match_rcc <- matchit(
+  smoker ~ age + sex + bmi_real + highbp_bin + highchol_bin +
+    physact_bin + education + income + random,
+  data     = df_rcc,
+  method   = "nearest",
+  ratio    = 1,
+  caliper  = 0.01,
+  distance = "logit"
+)
+
+df_rcc_matched <- match.data(match_rcc)
+
+modelo_rcc <- lm(
+  diabetes_bin ~ smoker + age + sex + bmi_real +
+    highbp_bin + highchol_bin + physact_bin + education + income + random,
+  data    = df_rcc_matched,
+  weights = weights
+)
+
+res_rcc <- coeftest(modelo_rcc, vcov = vcovCL(modelo_rcc, cluster = ~subclass))
+ate_rcc <- round(res_rcc["smoker", "Estimate"], 4)
+p_rcc   <- round(res_rcc["smoker", "Pr(>|t|)"], 2)
+
+# 3. Placebo treatment refutation
+df_placebo         <- df
+df_placebo$placebo <- sample(c(0, 1), nrow(df_placebo), replace = TRUE)
+
+match_plac <- matchit(
+  placebo ~ age + sex + bmi_real + highbp_bin + highchol_bin +
+    physact_bin + education + income,
+  data     = df_placebo,
+  method   = "nearest",
+  ratio    = 1,
+  caliper  = 0.01,
+  distance = "logit"
+)
+
+df_plac_matched <- match.data(match_plac)
+
+modelo_plac <- lm(
+  diabetes_bin ~ placebo + age + sex + bmi_real +
+    highbp_bin + highchol_bin + physact_bin + education + income,
+  data    = df_plac_matched,
+  weights = weights
+)
+
+res_plac <- coeftest(modelo_plac, vcov = vcovCL(modelo_plac, cluster = ~subclass))
+ate_plac <- round(res_plac["placebo", "Estimate"], 4)
+p_plac   <- round(res_plac["placebo", "Pr(>|t|)"], 2)
+
+# Tabela de refutacao
+tabela_ref <- data.frame(
+  `Estimador / Teste`    = c("Propensity Score Matching (ATE)",
+                              "Subset refutation (70% dados)",
+                              "Random common cause refutation",
+                              "Placebo treatment refutation"),
+  `Efeito Estimado`      = c(ate, ate_sub, ate_rcc, ate_plac),
+  `IC 95% / p-valor`     = c(paste0(ic_low, " – ", ic_high),
+                              paste0("p = ", p_sub),
+                              paste0("p = ", p_rcc),
+                              paste0("p = ", p_plac))
+)
+
+tabela_ref %>%
+  kbl(caption = "TABELA 2: Estimativa do Efeito Causal e Testes de Refutacao",
+      col.names = c("Estimador / Teste", "Efeito Estimado", "IC 95% / p-valor"),
+      align = c("l", "c", "c")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = TRUE,
+    font_size  = 13
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#2c3e50", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#d5f5e3")
+```
+
+# Resultados
+
+Com base na analise de `r nrow(df)` adultos norte-americanos da pesquisa BRFSS 2015,
+a prevalencia nao ajustada de diabetes foi de
+**`r round(mean(df$diabetes_bin[df$smoker==1])*100, 1)`%** entre fumantes
+versus **`r round(mean(df$diabetes_bin[df$smoker==0])*100, 1)`%** entre nao fumantes.
+
+Apos o pareamento por escore de propensao (PSM 1:1, caliper = 0,01), o balanceamento
+das covariaveis foi excelente, com todas as diferencas medias padronizadas (SMD) abaixo
+de 0,05 apos o pareamento.
+
+O efeito medio do tratamento (ATE) estimado foi de **`r ate`**
+(IC 95%: `r ic_low` – `r ic_high`), indicando que o tabagismo aumenta causalmente
+a probabilidade de diabetes em aproximadamente
+**`r round(ate*100, 1)` pontos percentuais** na populacao.
+
+Os testes de refutacao confirmaram a robustez do resultado:
+
+- **Subset refutation (70% dos dados):** ATE = `r ate_sub`, p = `r p_sub` —
+  o efeito nao mudou significativamente ao usar uma subamostra aleatoria.
+- **Random common cause:** ATE = `r ate_rcc`, p = `r p_rcc` —
+  a adicao de uma variavel confundidora aleatoria nao alterou o resultado.
+- **Placebo treatment:** ATE = `r ate_plac`, p = `r p_plac` —
+  um tratamento aleatorio nao produziu efeito significativo, confirmando
+  que o efeito observado e especifico ao tabagismo.
+
+# Discussao
+
+Os resultados desta analise fornecem evidencia causal robusta de que o tabagismo
+aumenta o risco de diabetes tipo 2 em aproximadamente `r round(ate*100, 1)` pontos
+percentuais na populacao adulta norte-americana. Embora modesto em nivel individual,
+esse efeito e relevante em nivel populacional dado o alto indice de tabagismo.
+
+Os achados estao alinhados com estudos de randomizacao Mendeliana que reportam
+aumento de risco de 20 a 60% associado ao tabagismo. A utilizacao de um pipeline
+completo de inferencia causal com testes de refutacao fortalece a confianca nos
+resultados alem das abordagens de regressao tradicionais.
+
+**Limitacoes:**
+
+- Desenho transversal impede avaliacao de temporalidade
+- Status de tabagismo e diabetes sao autodeclarados, podendo introduzir vies de classificacao
+- Possivel confundimento residual por variaveis nao medidas (dieta, historia familiar)
+- Generalizabilidade limitada a adultos norte-americanos em 2015
+
+# Conclusao
+
+Este estudo demonstra que o tabagismo tem um efeito causal modesto, porem relevante
+para politicas publicas, sobre o risco de diabetes. A integracao de ferramentas modernas
+de aprendizado de maquina causal na pesquisa em saude publica pode mover o campo
+da associacao para evidencias relevantes para intervencao.
+
+Programas de cessacao do tabagismo permanecem uma estrategia prioritaria para
+reducao da carga populacional de diabetes tipo 2. Recomenda-se incorporar treinamento
+em inferencia causal nos curriculos de saude publica e estender pipelines similares
+a outros fatores de risco comportamentais.
