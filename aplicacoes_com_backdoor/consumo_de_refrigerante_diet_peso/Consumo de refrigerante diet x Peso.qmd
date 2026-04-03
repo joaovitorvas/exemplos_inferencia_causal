@@ -26,13 +26,16 @@ library(nhanesA)
 library(ggplot2)
 library(knitr)
 library(kableExtra)
+library(patchwork)
+
 
 set.seed(42)
 ```
 
+
 # Introdução
 
-Este documento replica a metodologia de @qi2024causality, que investigou o impacto
+Este documento replica a metodologia do [artigo](https://arxiv.org/pdf/2405.10746), que investigou o impacto
 causal do consumo de Diet Coke sobre a obesidade utilizando dados do **NHANES**
 (National Health and Nutrition Examination Survey) dos ciclos 2003–2004 e 2005–2006.
 
@@ -43,35 +46,17 @@ inferência causal formal, empregando:
    diagrama causal;
 2. **Critério Backdoor** para estimar a distribuição experimental (RCT) a partir
    de dados observacionais;
-3. **Probabilidade de Necessidade e Suficiência (PNS)** como métrica de impacto
-   causal individual, estratificada por subgrupos demográficos e dietéticos.
 
-# Dados
-
-## Fonte e variáveis
-
-Os dados provêm do programa NHANES, administrado pelo CDC. Foram utilizados dois
-ciclos anuais que incluem a seção de Frequência de Consumo Alimentar (FFQ):
-
-| Variável | Descrição | Codificação |
-|---|---|---|
-| `exposicao_coca` | Consumo de Diet Coke (X) | 0 = nunca, 1 = qualquer frequência |
-| `obesidade` | IMC ≥ 30 kg/m² (Y) | 0 = não obeso, 1 = obeso |
-| `diabetes` | Diabetes diagnosticada (Z — confounder) | 0 = não, 1 = sim |
-| `idade` | Idade em anos | Contínua |
-| `genero` | Sexo biológico | Male / Female |
-| `raca` | Raça/etnia | Categórica |
-| `escolaridade` | Nível de instrução | Categórica ordinal |
-| `fumo` | Fumou ≥ 100 cigarros na vida | 0 = não, 1 = sim |
-| `atividade_fisica` | Nível de atividade (PAQ180) | 1 = muito ativo … 4 = sedentário |
-| `hiperlipidemia` | Colesterol alto diagnosticado | 0 = não, 1 = sim |
-
-: Sumário das variáveis utilizadas {#tbl-vars}
-
-## Carregamento e limpeza
 
 ```{r carregar-dados}
-dados_nhanes <- readRDS("nhanes_completo_03_06.rds")
+
+download.file(
+  "https://zenodo.org/records/19404099/files/nhanes_completo_03_06.rds",
+  "nhanes2003_2006.rds",
+  mode = "wb"
+)
+
+dados_nhanes <- readRDS("nhanes2003_2006.rds")
 
 vars_modelo <- c("exposicao_coca", "obesidade", "idade", "genero", "raca",
                  "escolaridade", "fumo", "atividade_fisica",
@@ -99,31 +84,45 @@ dados_nhanes %>%
 ## Distribuição das variáveis principais
 
 ```{r graficos-descritivos, fig.height=4, fig.width=9}
-p1 <- dados_nhanes %>%
-  mutate(exposicao = ifelse(exposicao_coca == 1, "Consome Diet Coke", "Não consome")) %>%
-  ggplot(aes(x = exposicao, fill = exposicao)) +
-  geom_bar(width = 0.5) +
-  scale_fill_manual(values = c("#1D9E75", "#D85A30")) +
-  labs(title = "Exposição ao Diet Coke", x = NULL, y = "N") +
-  theme_minimal(base_size = 12) +
+
+df_plot <- dados_nhanes %>%
+  mutate(
+    exposicao = ifelse(exposicao_coca == 1, "Consome Diet Coke", "Não consome"),
+    status = ifelse(obesidade == 1, "Obeso (IMC ≥ 30)", "Não obeso")
+  )
+
+tema_ic <- theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(color = "grey30")
+  )
+
+p1 <- ggplot(df_plot, aes(x = exposicao, fill = exposicao)) +
+  geom_bar(width = 0.6) +
+  scale_fill_manual(values = c("#2A9D8F", "#E76F51")) +
+  labs(title = "Exposição ao Diet Coke", x = NULL, y = "Contagem") +
+  tema_ic +
   theme(legend.position = "none")
 
-p2 <- dados_nhanes %>%
-  mutate(status = ifelse(obesidade == 1, "Obeso (IMC ≥ 30)", "Não obeso")) %>%
-  ggplot(aes(x = status, fill = status)) +
-  geom_bar(width = 0.5) +
-  scale_fill_manual(values = c("#378ADD", "#D85A30")) +
-  labs(title = "Status de obesidade", x = NULL, y = "N") +
-  theme_minimal(base_size = 12) +
+p2 <- ggplot(df_plot, aes(x = status, fill = status)) +
+  geom_bar(width = 0.6) +
+  scale_fill_manual(values = c("#264653", "#E76F51")) +
+  labs(title = "Status de Obesidade", x = NULL, y = NULL) + 
+  tema_ic +
   theme(legend.position = "none")
 
-p3 <- dados_nhanes %>%
-  ggplot(aes(x = idade)) +
-  geom_histogram(bins = 30, fill = "#7F77DD", color = "white", linewidth = 0.3) +
-  labs(title = "Distribuição de idade", x = "Idade (anos)", y = "N") +
-  theme_minimal(base_size = 12)
+p3 <- ggplot(df_plot, aes(x = idade)) +
+  geom_histogram(bins = 25, fill = "#457B9D", color = "white") +
+  labs(title = "Distribuição de Idade", x = "Idade (anos)", y = NULL) +
+  tema_ic
 
-gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+(p1 | p2 | p3) + 
+  plot_annotation(
+    title = 'Análise Descritiva da Amostra',
+    subtitle = 'Distribuição das variáveis de exposição, desfecho e idade',
+    theme = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))
+  )
 ```
 
 # Diagrama Causal
@@ -132,8 +131,7 @@ gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
 
 O algoritmo IC\*, implementado como FCI (*Fast Causal Inference*) no pacote `pcalg`,
 constrói um PAG (*Partial Ancestral Graph*) a partir de testes de independência
-condicional. Diferentemente do algoritmo PC, o FCI admite a presença de variáveis
-latentes, o que é mais adequado ao contexto observacional do NHANES.
+condicional.
 
 ```{r fci}
 # Preparar matriz para o FCI
@@ -167,44 +165,6 @@ fci_fit <- fci(
 )
 
 cat("FCI concluído —", ncol(df_model), "variáveis,", nrow(df_model), "observações\n")
-```
-
-## Visualização do PAG
-
-```{r dag-fci, fig.height=5, fig.width=7}
-amat <- fci_fit@amat
-rownames(amat) <- colnames(df_model)
-colnames(amat) <- colnames(df_model)
-
-# Extrair arestas direcionadas
-n       <- nrow(amat)
-adj_dir <- matrix(0, n, n, dimnames = list(colnames(amat), colnames(amat)))
-for (i in 1:n) for (j in 1:n)
-  if (amat[i,j] == 2 && amat[j,i] == 3) adj_dir[i,j] <- 1
-
-g <- graph_from_adjacency_matrix(adj_dir, mode = "directed", diag = FALSE)
-
-cor_no <- function(name) {
-  if (name %in% c("exposicao_coca", "obesidade")) return("#D85A30")
-  if (name == "diabetes")                          return("#7F77DD")
-  return("#888780")
-}
-V(g)$color <- sapply(V(g)$name, cor_no)
-
-plot(g,
-     vertex.color       = V(g)$color,
-     vertex.label.color = "white",
-     vertex.label.cex   = 0.8,
-     vertex.size        = 32,
-     edge.arrow.size    = 0.5,
-     edge.color         = "#444441",
-     layout             = layout_with_fr(g),
-     main               = "PAG gerado pelo FCI/IC*")
-
-legend("bottomleft",
-       legend = c("X (Diet Coke) / Y (obesidade)", "Confounder (diabetes)", "Covariável"),
-       fill   = c("#D85A30", "#7F77DD", "#888780"),
-       bty    = "n", cex = 0.8)
 ```
 
 ## DAG do artigo e critério backdoor
@@ -309,7 +269,7 @@ data.frame(
 
 Os resultados indicam que o consumo de Diet Coke aumenta a probabilidade de
 obesidade em aproximadamente **`r round((p_y1_do_x1 - p_y1_do_x0)*100, 1)` pontos
-percentuais** na população geral, em linha com os `r 9.58`pp reportados pelo artigo.
+percentuais** na população geral, proxímo aos `r 9.58`pp do artigo.
 
 # Fronteiras de PNS
 
@@ -449,30 +409,4 @@ merge(tab2_replic, tab2_ref, by = "Subgrupo") %>%
   column_spec(5, color = "#993C1D")
 ```
 
-
-# Discussão
-
-Os resultados desta replicação são consistentes com os achados de @qi2024causality
-em três dimensões principais:
-
-**Efeito causal geral.** A diferença causal estimada
-(`r round((p_y1_do_x1 - p_y1_do_x0)*100, 1)`pp) está próxima dos 9,58pp do artigo,
-confirmando que o consumo de Diet Coke está associado a um aumento modesto mas
-mensurável na probabilidade de obesidade na população geral.
-
-**Heterogeneidade por subgrupo.** As fronteiras de PNS variam substancialmente
-entre subgrupos, reforçando a tese central do artigo de que o efeito do Diet Coke
-não é uniforme. Homens mais velhos com baixa atividade física apresentam fronteiras
-superiores consistentemente mais altas, enquanto mulheres jovens com hábitos
-alimentares saudáveis apresentam fronteiras inferiores próximas de zero.
-
-**Limitações desta replicação.** Três pontos merecem atenção:
-
-1. Quatro covariáveis (`genero`, `raca`, `escolaridade`, `atividade_fisica`)
-   ficaram fora do FCI por retornarem 100% NA após conversão numérica — o artigo
-   pode ter tratado essas variáveis de forma diferente na construção do DAG.
-2. O corte de idade para "Old" (≥ 60 anos) pode diferir do artigo, que não
-   especifica o limiar exato; testes com ≥ 55 anos melhoram alguns subgrupos.
-3. O limiar de frequência para "consome" no FFQ foi definido como ≥ 1x/semana,
-   o que é uma escolha desta replicação — o artigo não detalha esse critério.
 
