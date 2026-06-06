@@ -2350,10 +2350,11 @@ window.Quarto = {
   <li><a href="#estudo-baseado-no-artigo-does-compulsory-school-attendance-affect-schooling-and-earnings---joshua-d.-angrist-and-alan-b.-krueger-1991" id="toc-estudo-baseado-no-artigo-does-compulsory-school-attendance-affect-schooling-and-earnings---joshua-d.-angrist-and-alan-b.-krueger-1991" class="nav-link active" data-scroll-target="#estudo-baseado-no-artigo-does-compulsory-school-attendance-affect-schooling-and-earnings---joshua-d.-angrist-and-alan-b.-krueger-1991"><span class="header-section-number">1</span> Estudo baseado no artigo “<em>Does Compulsory School Attendance Affect Schooling and Earnings?” -</em> <strong>Joshua D. Angrist and Alan B. Krueger (1991)</strong></a>
   <ul class="collapse">
   <li><a href="#preparação-do-ambiente-e-importação-dos-dados" id="toc-preparação-do-ambiente-e-importação-dos-dados" class="nav-link" data-scroll-target="#preparação-do-ambiente-e-importação-dos-dados"><span class="header-section-number">1.1</span> Preparação do Ambiente e Importação dos Dados</a></li>
-  <li><a href="#o-estimador-de-wald-a-lógica-básica" id="toc-o-estimador-de-wald-a-lógica-básica" class="nav-link" data-scroll-target="#o-estimador-de-wald-a-lógica-básica"><span class="header-section-number">1.2</span> O Estimador de Wald (A Lógica Básica)</a></li>
-  <li><a href="#o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" id="toc-o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" class="nav-link" data-scroll-target="#o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols"><span class="header-section-number">1.3</span> O regressão ingénua via Mínimos Quadrados Ordinários (OLS)</a></li>
-  <li><a href="#modelos-com-controlos-a-idade-importa" id="toc-modelos-com-controlos-a-idade-importa" class="nav-link" data-scroll-target="#modelos-com-controlos-a-idade-importa"><span class="header-section-number">1.4</span> Modelos com Controlos: A Idade Importa</a></li>
-  <li><a href="#visualização-dos-dados" id="toc-visualização-dos-dados" class="nav-link" data-scroll-target="#visualização-dos-dados"><span class="header-section-number">1.5</span> Visualização dos dados</a></li>
+  <li><a href="#dicionário-de-variáveis" id="toc-dicionário-de-variáveis" class="nav-link" data-scroll-target="#dicionário-de-variáveis"><span class="header-section-number">1.2</span> Dicionário de Variáveis</a></li>
+  <li><a href="#o-estimador-de-wald-a-lógica-básica" id="toc-o-estimador-de-wald-a-lógica-básica" class="nav-link" data-scroll-target="#o-estimador-de-wald-a-lógica-básica"><span class="header-section-number">1.3</span> O Estimador de Wald (A Lógica Básica)</a></li>
+  <li><a href="#o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" id="toc-o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" class="nav-link" data-scroll-target="#o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols"><span class="header-section-number">1.4</span> O regressão ingénua via Mínimos Quadrados Ordinários (OLS)</a></li>
+  <li><a href="#modelos-com-controlos-a-idade-importa" id="toc-modelos-com-controlos-a-idade-importa" class="nav-link" data-scroll-target="#modelos-com-controlos-a-idade-importa"><span class="header-section-number">1.5</span> Modelos com Controlos: A Idade Importa</a></li>
+  <li><a href="#visualização-dos-dados" id="toc-visualização-dos-dados" class="nav-link" data-scroll-target="#visualização-dos-dados"><span class="header-section-number">1.6</span> Visualização dos dados</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -2389,11 +2390,16 @@ window.Quarto = {
 
 <section id="estudo-baseado-no-artigo-does-compulsory-school-attendance-affect-schooling-and-earnings---joshua-d.-angrist-and-alan-b.-krueger-1991" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="estudo-baseado-no-artigo-does-compulsory-school-attendance-affect-schooling-and-earnings---joshua-d.-angrist-and-alan-b.-krueger-1991"><span class="header-section-number">1</span> Estudo baseado no artigo “<em>Does Compulsory School Attendance Affect Schooling and Earnings?” -</em> <strong>Joshua D. Angrist and Alan B. Krueger (1991)</strong></h2>
+<p>Link do artigo original que estamos usando como base: <a href="https://www.nber.org/system/files/working_papers/w3572/w3572.pdf">Does Compulsory School Attendance Affect Schooling and Earnings?</a></p>
 <p>Para a construção do código usei como referência direta o material: <a href="https://jrnold.github.io/masteringmetrics/quarter-of-birth-and-returns-to-schooling.html">R Code for Mastering ’Metrics</a>.</p>
-<p>O objetivo central desta análise é estimar o <strong>efeito causal da educação</strong> no salário. Em regressões tradicionais, esse retorno é inflacionado pelo <strong>viés de habilidade</strong> (pessoas mais aptas ou motivadas tendem a estudar mais e a ganhar mais). Para isolar o efeito puro da escola, Angrist e Krueger utilizam um instrumento natural: a interação entre o <strong>trimestre de nascimento</strong> e as <strong>leis de escolaridade obrigatória</strong>.</p>
+<p>O objetivo central desta análise é estimar o efeito causal da educação (anos adicionais de estudo, <span class="math inline">\(X\)</span>) no salário futuro (<span class="math inline">\(Y\)</span>), utilizando o trimestre de nascimento (<span class="math inline">\(Z\)</span>) como instrumento para isolar o viés de habilidade (<span class="math inline">\(U\)</span>), que atua como uma variável de confusão.</p>
+<p>Em regressões tradicionais, o retorno financeiro da educação costuma ser inflacionado por esse <strong>viés de habilidade</strong>: pessoas naturalmente mais aptas ou motivadas tendem a estudar mais e, simultaneamente, a ganhar mais no mercado de trabalho.</p>
+<p>Para isolar o efeito puro da escola, Angrist e Krueger exploram um experimento natural: a interação entre o <strong>trimestre de nascimento</strong> e as <strong>leis de escolaridade obrigatória</strong>. No artigo, os autores demonstram que o trimestre do ano em que um aluno nasce afeta diretamente o seu nível de escolaridade final. Isso ocorre porque as políticas de idade mínima para ingresso escolar fazem com que os alunos nascidos no início do ano atinjam a idade legal para evasão (geralmente 16 anos) tendo acumulado menos tempo de sala de aula do que os seus colegas nascidos no final do ano.</p>
+<p>As estimativas indicam que cerca de 25% dos potenciais desistentes acabam permanecendo na escola apenas devido a essa obrigatoriedade legal.</p>
+<p>Como é altamente improvável que o trimestre de nascimento de alguém esteja correlacionado com atributos pessoais inatos, como inteligência ou motivação (<span class="math inline">\(U\)</span>), o trimestre torna-se uma <strong>variável exógena</strong> perfeita. Ou seja, é uma variável determinada fora do modelo (um fator biológico aleatório) que afeta a educação (<span class="math inline">\(X\)</span>), mas que não possui nenhuma relação direta com o salário (<span class="math inline">\(Y\)</span>) a não ser através do tempo extra passado na escola.</p>
 <section id="preparação-do-ambiente-e-importação-dos-dados" class="level3" data-number="1.1">
 <h3 data-number="1.1" class="anchored" data-anchor-id="preparação-do-ambiente-e-importação-dos-dados"><span class="header-section-number">1.1</span> Preparação do Ambiente e Importação dos Dados</h3>
-<p>Iniciamos carregando as bibliotecas essenciais para a análise de dados e estimação de modelos com Variáveis Instrumentais (VI).</p>
+<p>Inicialmente carreguei as mesmas bibliotecas usadas pela referência para a análise de dados e estimação de modelos com Variáveis Instrumentais (VI).</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;AER&quot;</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;sandwich&quot;</span>)</span>
@@ -2408,35 +2414,135 @@ window.Quarto = {
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>ak91 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(url_dados) <span class="sc">%&gt;%</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">q4 =</span> <span class="fu">as.numeric</span>(quarter_of_birth <span class="sc">==</span> <span class="dv">4</span>))</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ak91)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 6
-  log_wage years_of_schooling year_of_birth quarter_of_birth state_of_birth
-     &lt;dbl&gt;              &lt;dbl&gt;         &lt;dbl&gt;            &lt;dbl&gt;          &lt;dbl&gt;
-1     5.79                 12            30                1             45
-2     5.95                 11            30                1             45
-3     5.32                 12            30                1             45
-4     5.60                 12            30                1             45
-5     6.07                 12            30                1             37
-6     5.79                 11            30                1             45
-# ℹ 1 more variable: q4 &lt;dbl&gt;</code></pre>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">head</span>(ak91))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 24%">
+<col style="width: 18%">
+<col style="width: 22%">
+<col style="width: 19%">
+<col style="width: 3%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">log_wage</th>
+<th style="text-align: right;">years_of_schooling</th>
+<th style="text-align: right;">year_of_birth</th>
+<th style="text-align: right;">quarter_of_birth</th>
+<th style="text-align: right;">state_of_birth</th>
+<th style="text-align: right;">q4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">5.790019</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">5.952494</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">5.315949</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">5.595926</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">6.068915</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">37</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">5.793871</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </section>
-<section id="o-estimador-de-wald-a-lógica-básica" class="level3" data-number="1.2">
-<h3 data-number="1.2" class="anchored" data-anchor-id="o-estimador-de-wald-a-lógica-básica"><span class="header-section-number">1.2</span> O Estimador de Wald (A Lógica Básica)</h3>
-<p>O Estimador de Wald calcula o efeito causal dividindo o impacto do instrumento na variável de resultado (Forma Reduzida) pelo impacto do instrumento na variável endógena (Primeiro Estágio). Em termos matemáticos gerais:</p>
+<section id="dicionário-de-variáveis" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="dicionário-de-variáveis"><span class="header-section-number">1.2</span> Dicionário de Variáveis</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Variável</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>log_wage</code></td>
+<td style="text-align: left;">Contínua</td>
+<td style="text-align: left;">Logaritmo natural do salário semanal.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>years_of_schooling</code></td>
+<td style="text-align: left;">Discreta</td>
+<td style="text-align: left;">Anos totais de educação formal concluídos.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>quarter_of_birth</code></td>
+<td style="text-align: left;">Categórica</td>
+<td style="text-align: left;">Trimestre de nascimento do indivíduo (1 a 4).</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>year_of_birth</code></td>
+<td style="text-align: left;">Categórica</td>
+<td style="text-align: left;">Ano de nascimento do indivíduo (1930 a 1939).</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>q4</code></td>
+<td style="text-align: left;">Indicadora (Dummy)</td>
+<td style="text-align: left;">Assume valor 1 se o indivíduo nasceu no 4º trimestre, e 0 caso contrário.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="o-estimador-de-wald-a-lógica-básica" class="level3" data-number="1.3">
+<h3 data-number="1.3" class="anchored" data-anchor-id="o-estimador-de-wald-a-lógica-básica"><span class="header-section-number">1.3</span> O Estimador de Wald (A Lógica Básica)</h3>
+<p>O Estimador de Wald calcula o efeito causal dividindo o impacto do instrumento na variável de resultado pelo impacto do instrumento na variável endógena (Primeiro Estágio).</p>
 <p><span class="math display">\[
-\hat{\beta}_{Wald} = \frac{\text{Forma Reduzida}}{\text{Primeiro Estágio}} = \frac{\text{Efeito de } Z \text{ em } Y}{\text{Efeito de } Z \text{ em } X}
+\hat{\beta}_{Wald} = \frac{\Delta \text{Salário}}{\Delta \text{Escolaridade}} = \frac{E[\text{Salário} \mid \text{4º Trimestre}] - E[\text{Salário} \mid \text{Outros Trimestres}]}{E[\text{Escolaridade} \mid \text{4º Trimestre}] - E[\text{Escolaridade} \mid \text{Outros Trimestres}]}
 \]</span></p>
-<p>Aplicando diretamente ao experimento de Angrist e Krueger (1991), a matemática traduz-se na seguinte razão:</p>
-<p><span class="math display">\[
-\text{Retorno à Educação} = \frac{\Delta \text{Salário}}{\Delta \text{Escolaridade}} = \frac{E[\text{Salário} \mid \text{4º Trimestre}] - E[\text{Salário} \mid \text{Outros Trimestres}]}{E[\text{Escolaridade} \mid \text{4º Trimestre}] - E[\text{Escolaridade} \mid \text{Outros Trimestres}]}
-\]</span></p>
-<p>Forma Reduzida (Numerador): Qual o impacto de nascer no 4º trimestre no salário?</p>
+<p>Numerador: Qual o impacto de nascer no 4º trimestre no salário?</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> q4, <span class="at">data =</span> ak91)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod1, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> q4, <span class="at">data =</span> ak91)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod1, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 t test of coefficients:
@@ -2448,10 +2554,10 @@ q4          0.0068132  0.0027433    2.4836  0.01301 *
 Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
 </div>
 </div>
-<p>Primeiro Estágio (Denominador): Qual o impacto de nascer no 4º trimestre nos anos de escolaridade?</p>
+<p>Denominador: Qual o impacto de nascer no 4º trimestre nos anos de escolaridade?</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>mod2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(years_of_schooling <span class="sc">~</span> q4, <span class="at">data =</span> ak91)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod2, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>mod2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(years_of_schooling <span class="sc">~</span> q4, <span class="at">data =</span> ak91)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod2, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 t test of coefficients:
@@ -2466,8 +2572,8 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 <p><strong>Mínimos Quadrados em Dois Estágios - TSLS:</strong></p>
 <p>A função ivreg realiza a operação do Estimador de Wald de forma integrada, utilizando q4 como instrumento para limpar a variável years_of_schooling da sua endogeneidade.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>mod3 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">|</span> q4, <span class="at">data =</span> ak91)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod3, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>mod3 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">|</span> q4, <span class="at">data =</span> ak91)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod3, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 t test of coefficients:
@@ -2480,12 +2586,12 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 </div>
 </div>
 </section>
-<section id="o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" class="level3" data-number="1.3">
-<h3 data-number="1.3" class="anchored" data-anchor-id="o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols"><span class="header-section-number">1.3</span> O regressão ingénua via Mínimos Quadrados Ordinários (OLS)</h3>
+<section id="o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols" class="level3" data-number="1.4">
+<h3 data-number="1.4" class="anchored" data-anchor-id="o-regressão-ingénua-via-mínimos-quadrados-ordinários-ols"><span class="header-section-number">1.4</span> O regressão ingénua via Mínimos Quadrados Ordinários (OLS)</h3>
 <p>Para efeitos de comparação, vejamos a regressão ingénua via Mínimos Quadrados Ordinários (OLS), que desconsidera o viés de habilidade:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>mod4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> years_of_schooling, <span class="at">data =</span> ak91)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod4, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>mod4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> years_of_schooling, <span class="at">data =</span> ak91)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod4, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 t test of coefficients:
@@ -2500,8 +2606,8 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 <p><em>Nota: A diferença relativamente pequena entre a estimativa OLS e a estimativa de VI foi um dos grandes achados de Angrist e Krueger, sugerindo que o viés de habilidade pode não ser tão massivo quanto se teorizava para esta população.</em></p>
 <p>Se precisarmos de testes de diagnóstico adicionais (como o teste de instrumentos fracos), aplicamos o argumento <code>diagnostics = TRUE</code>:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>mod5 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">|</span> q4, <span class="at">data =</span> ak91)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod5, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>mod5 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">|</span> q4, <span class="at">data =</span> ak91)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod5, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -2529,8 +2635,8 @@ Multiple R-Squared: 0.1171, Adjusted R-squared: 0.1171
 Wald test:  6.97 on 1 and 329507 DF,  p-value: 0.008289 </code></pre>
 </div>
 </div>
-<section id="testes-dos-instrumentos-fracos-weak-instruments" class="level4" data-number="1.3.1">
-<h4 data-number="1.3.1" class="anchored" data-anchor-id="testes-dos-instrumentos-fracos-weak-instruments"><span class="header-section-number">1.3.1</span> Testes dos Instrumentos Fracos (Weak Instruments)</h4>
+<section id="testes-dos-instrumentos-fracos-weak-instruments" class="level4" data-number="1.4.1">
+<h4 data-number="1.4.1" class="anchored" data-anchor-id="testes-dos-instrumentos-fracos-weak-instruments"><span class="header-section-number">1.4.1</span> Testes dos Instrumentos Fracos (Weak Instruments)</h4>
 <p>Na matemática das Variáveis Instrumentais, o Estimador de Wald é essencialmente uma divisão. O nosso <strong>Primeiro Estágio</strong> (o impacto do trimestre na escolaridade) é o denominador dessa conta.</p>
 <p>Se o instrumento for <strong>fraco</strong> — ou seja, se o trimestre de nascimento tiver um impacto quase nulo no tempo de escola —, o nosso denominador aproxima-se de zero. Matematicamente, dividir por zero (ou por ruído) faz com que a variância do nosso estimador expluda e os resultados percam qualquer validade estatística. Pior ainda: em amostras reais, um instrumento fraco faz com que a estimativa perca o seu “poder de limpeza” e seja sugada de volta para o resultado enviesado do OLS.</p>
 <p>Para garantir que estamos seguros, usamos o argumento <code>diagnostics = TRUE</code> na função <code>ivreg</code>, que executa um <strong>Teste F</strong> no Primeiro Estágio.</p>
@@ -2541,23 +2647,23 @@ Wald test:  6.97 on 1 and 329507 DF,  p-value: 0.008289 </code></pre>
 <p>Isto prova que a lei de escolaridade obrigatória aliada ao trimestre de nascimento não é apenas uma teoria curiosa; é um <strong>instrumento extremamente forte e robusto</strong> para mover a escolaridade!</p>
 </section>
 </section>
-<section id="modelos-com-controlos-a-idade-importa" class="level3" data-number="1.4">
-<h3 data-number="1.4" class="anchored" data-anchor-id="modelos-com-controlos-a-idade-importa"><span class="header-section-number">1.4</span> Modelos com Controlos: A Idade Importa</h3>
+<section id="modelos-com-controlos-a-idade-importa" class="level3" data-number="1.5">
+<h3 data-number="1.5" class="anchored" data-anchor-id="modelos-com-controlos-a-idade-importa"><span class="header-section-number">1.5</span> Modelos com Controlos: A Idade Importa</h3>
 <p>No mundo real, o salário cresce com a idade. Como os nascidos no início do ano são ligeiramente mais velhos do que os nascidos no fim do mesmo ano, precisamos de controlar o ano de nascimento para não confundir o efeito da idade com o efeito da escolaridade.</p>
 <p>Recriamos as variáveis para garantir que o ano e o trimestre de nascimento sejam tratados como fatores (variáveis categóricas).</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>ak91 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(url_dados) <span class="sc">%&gt;%</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">q4 =</span> <span class="fu">as.numeric</span>(quarter_of_birth <span class="sc">==</span> <span class="dv">4</span>),</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">yob_fct =</span> <span class="fu">factor</span>(year_of_birth),       </span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">qob_fct =</span> <span class="fu">factor</span>(quarter_of_birth)     </span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>ak91 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(url_dados) <span class="sc">%&gt;%</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">q4 =</span> <span class="fu">as.numeric</span>(quarter_of_birth <span class="sc">==</span> <span class="dv">4</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">yob_fct =</span> <span class="fu">factor</span>(year_of_birth),       </span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">qob_fct =</span> <span class="fu">factor</span>(quarter_of_birth)     </span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Comparação dos modelos controlando pelo ano de nascimento (YOB):</p>
 <p><strong>OLS com Controlo:</strong></p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>mod6 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod6, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mod6 <span class="ot">&lt;-</span> <span class="fu">lm</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(mod6, <span class="at">vcov =</span> sandwich)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 t test of coefficients:
@@ -2580,8 +2686,8 @@ Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&
 </div>
 <p><strong>Variáveis Instrumentais (Instrumento Único + Controlo):</strong> Repare que as covariáveis exógenas (<code>yob_fct</code>) devem entrar tanto na equação principal quanto na lista de instrumentos.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>mod7 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct <span class="sc">|</span> q4 <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod7, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>mod7 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct <span class="sc">|</span> q4 <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod7, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -2621,8 +2727,8 @@ Wald test: 1.806 on 10 and 329498 DF,  p-value: 0.05402 </code></pre>
 </div>
 <p><strong>O Modelo Robusto (Múltiplos Instrumentos):</strong> Em vez de usar apenas uma <em>dummy</em> para o 4º trimestre, utilizamos todos os trimestres do ano como instrumentos para gerar ainda mais variação exógena.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>mod8 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct <span class="sc">|</span> qob_fct <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod8, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>mod8 <span class="ot">&lt;-</span> <span class="fu">ivreg</span>(log_wage <span class="sc">~</span> years_of_schooling <span class="sc">+</span> yob_fct <span class="sc">|</span> qob_fct <span class="sc">+</span> yob_fct, <span class="at">data =</span> ak91)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod8, <span class="at">vcov =</span> sandwich, <span class="at">diagnostics =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -2661,25 +2767,25 @@ Wald test: 3.793 on 10 and 329498 DF,  p-value: 3.898e-05 </code></pre>
 </div>
 </div>
 </section>
-<section id="visualização-dos-dados" class="level3" data-number="1.5">
-<h3 data-number="1.5" class="anchored" data-anchor-id="visualização-dos-dados"><span class="header-section-number">1.5</span> Visualização dos dados</h3>
+<section id="visualização-dos-dados" class="level3" data-number="1.6">
+<h3 data-number="1.6" class="anchored" data-anchor-id="visualização-dos-dados"><span class="header-section-number">1.6</span> Visualização dos dados</h3>
 <p>A ideia do artigo de 1991 pode ser visualizada na visualização dos dados. Vamos agrupar os indivíduos pelo ano e trimestre exato de nascimento e calcular as médias de escolaridade e salário.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>ak91_age <span class="ot">&lt;-</span> ak91 <span class="sc">%&gt;%</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(quarter_of_birth, year_of_birth) <span class="sc">%&gt;%</span></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">log_wage =</span> <span class="fu">mean</span>(log_wage), <span class="at">years_of_schooling =</span> <span class="fu">mean</span>(years_of_schooling)) <span class="sc">%&gt;%</span></span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">q4 =</span> (quarter_of_birth <span class="sc">==</span> <span class="dv">4</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ak91_age <span class="ot">&lt;-</span> ak91 <span class="sc">%&gt;%</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(quarter_of_birth, year_of_birth) <span class="sc">%&gt;%</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">log_wage =</span> <span class="fu">mean</span>(log_wage), <span class="at">years_of_schooling =</span> <span class="fu">mean</span>(years_of_schooling)) <span class="sc">%&gt;%</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">q4 =</span> (quarter_of_birth <span class="sc">==</span> <span class="dv">4</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O gráfico abaixo mostra a variação sazonal na educação. Indivíduos nascidos no primeiro trimestre estudaram menos anos, em média, do que os nascidos nos trimestres seguintes, devido às leis de idade mínima para abandono escolar.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ak91_age, <span class="fu">aes</span>(<span class="at">x =</span> year_of_birth <span class="sc">+</span> (quarter_of_birth <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">4</span>, <span class="at">y =</span> years_of_schooling)) <span class="sc">+</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_label</span>(<span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">label =</span> quarter_of_birth, <span class="at">color =</span> q4)) <span class="sc">+</span></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>) <span class="sc">+</span></span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="st">&quot;Ano de nascimento&quot;</span>, <span class="at">breaks =</span> <span class="dv">1930</span><span class="sc">:</span><span class="dv">1940</span>) <span class="sc">+</span></span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="st">&quot;Anos de educação&quot;</span>, <span class="at">breaks =</span> <span class="fu">seq</span>(<span class="fl">12.2</span>, <span class="fl">13.2</span>, <span class="at">by =</span> <span class="fl">0.2</span>),</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>                     <span class="at">limits =</span> <span class="fu">c</span>(<span class="fl">12.2</span>, <span class="fl">13.2</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ak91_age, <span class="fu">aes</span>(<span class="at">x =</span> year_of_birth <span class="sc">+</span> (quarter_of_birth <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">4</span>, <span class="at">y =</span> years_of_schooling)) <span class="sc">+</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_label</span>(<span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">label =</span> quarter_of_birth, <span class="at">color =</span> q4)) <span class="sc">+</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>) <span class="sc">+</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="st">&quot;Ano de nascimento&quot;</span>, <span class="at">breaks =</span> <span class="dv">1930</span><span class="sc">:</span><span class="dv">1940</span>) <span class="sc">+</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="st">&quot;Anos de educação&quot;</span>, <span class="at">breaks =</span> <span class="fu">seq</span>(<span class="fl">12.2</span>, <span class="fl">13.2</span>, <span class="at">by =</span> <span class="fl">0.2</span>),</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>                     <span class="at">limits =</span> <span class="fu">c</span>(<span class="fl">12.2</span>, <span class="fl">13.2</span>))</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -2690,13 +2796,13 @@ Wald test: 3.793 on 10 and 329498 DF,  p-value: 3.898e-05 </code></pre>
 </div>
 <p>Se o Trimestre de Nascimento afeta a educação, e a educação afeta os salários, então o Trimestre de Nascimento deve afetar os salários na mesma proporção. É exatamente o que a Forma Reduzida mostra visualmente no gráfico seguinte: as quedas de rendimento acompanham perfeitamente as quedas de escolaridade.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ak91_age, <span class="fu">aes</span>(<span class="at">x =</span> year_of_birth <span class="sc">+</span> (quarter_of_birth <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">4</span>, <span class="at">y =</span> log_wage)) <span class="sc">+</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_label</span>(<span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">label =</span> quarter_of_birth, <span class="at">color =</span> q4)) <span class="sc">+</span></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="st">&quot;Ano de nascimento&quot;</span>, <span class="at">breaks =</span> <span class="dv">1930</span><span class="sc">:</span><span class="dv">1940</span>) <span class="sc">+</span></span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="st">&quot;Log salários semanais&quot;</span>) <span class="sc">+</span></span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ak91_age, <span class="fu">aes</span>(<span class="at">x =</span> year_of_birth <span class="sc">+</span> (quarter_of_birth <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">4</span>, <span class="at">y =</span> log_wage)) <span class="sc">+</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_label</span>(<span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">label =</span> quarter_of_birth, <span class="at">color =</span> q4)) <span class="sc">+</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="st">&quot;Ano de nascimento&quot;</span>, <span class="at">breaks =</span> <span class="dv">1930</span><span class="sc">:</span><span class="dv">1940</span>) <span class="sc">+</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="st">&quot;Log salários semanais&quot;</span>) <span class="sc">+</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>)</span></code></pre></div><button title="Copiar para a área de transferência" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">

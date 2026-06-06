@@ -17,14 +17,23 @@ execute:
 
 ## Estudo baseado no artigo "*Does Compulsory School Attendance Affect Schooling and Earnings?" -* **Joshua D. Angrist and Alan B. Krueger (1991)**
 
+Link do artigo original que estamos usando como base: [Does Compulsory School Attendance Affect Schooling and Earnings?](https://www.nber.org/system/files/working_papers/w3572/w3572.pdf)
+
 Para a construção do código usei como referência direta o material: [R Code for Mastering ’Metrics](https://jrnold.github.io/masteringmetrics/quarter-of-birth-and-returns-to-schooling.html).
 
-O objetivo central desta análise é estimar o **efeito causal da educação** no salário. Em regressões tradicionais, esse retorno é inflacionado pelo **viés de habilidade** (pessoas mais aptas ou motivadas tendem a estudar mais e a ganhar mais). Para isolar o efeito puro da escola, Angrist e Krueger utilizam um instrumento natural: a interação entre o **trimestre de nascimento** e as **leis de escolaridade obrigatória**.
+O objetivo central desta análise é estimar o efeito causal da educação (anos adicionais de estudo, $X$) no salário futuro ($Y$), utilizando o trimestre de nascimento ($Z$) como instrumento para isolar o viés de habilidade ($U$), que atua como uma variável de confusão.
+
+Em regressões tradicionais, o retorno financeiro da educação costuma ser inflacionado por esse **viés de habilidade**: pessoas naturalmente mais aptas ou motivadas tendem a estudar mais e, simultaneamente, a ganhar mais no mercado de trabalho.
+
+Para isolar o efeito puro da escola, Angrist e Krueger exploram um experimento natural: a interação entre o **trimestre de nascimento** e as **leis de escolaridade obrigatória**. No artigo, os autores demonstram que o trimestre do ano em que um aluno nasce afeta diretamente o seu nível de escolaridade final. Isso ocorre porque as políticas de idade mínima para ingresso escolar fazem com que os alunos nascidos no início do ano atinjam a idade legal para evasão (geralmente 16 anos) tendo acumulado menos tempo de sala de aula do que os seus colegas nascidos no final do ano.
+
+As estimativas indicam que cerca de 25% dos potenciais desistentes acabam permanecendo na escola apenas devido a essa obrigatoriedade legal.
+
+Como é altamente improvável que o trimestre de nascimento de alguém esteja correlacionado com atributos pessoais inatos, como inteligência ou motivação ($U$), o trimestre torna-se uma **variável exógena** perfeita. Ou seja, é uma variável determinada fora do modelo (um fator biológico aleatório) que afeta a educação ($X$), mas que não possui nenhuma relação direta com o salário ($Y$) a não ser através do tempo extra passado na escola.
 
 ### Preparação do Ambiente e Importação dos Dados
 
-Iniciamos carregando as bibliotecas essenciais para a análise de dados e estimação de modelos com Variáveis Instrumentais (VI).
-
+Inicialmente carreguei as mesmas bibliotecas usadas pela referência para a análise de dados e estimação de modelos com Variáveis Instrumentais (VI).
 
 ```{r}
 library("AER")
@@ -42,31 +51,35 @@ url_dados <- "https://raw.githubusercontent.com/matheusfacure/python-causality-h
 ak91 <- read_csv(url_dados) %>%
   mutate(q4 = as.numeric(quarter_of_birth == 4))
 
-head(ak91)
+knitr::kable(head(ak91))
 ```
+
+### Dicionário de Variáveis
+
+| Variável | Tipo | Descrição |
+|:---|:---|:---|
+| `log_wage` | Contínua | Logaritmo natural do salário semanal. |
+| `years_of_schooling` | Discreta | Anos totais de educação formal concluídos. |
+| `quarter_of_birth` | Categórica | Trimestre de nascimento do indivíduo (1 a 4). |
+| `year_of_birth` | Categórica | Ano de nascimento do indivíduo (1930 a 1939). |
+| `q4` | Indicadora (Dummy) | Assume valor 1 se o indivíduo nasceu no 4º trimestre, e 0 caso contrário. |
 
 ### O Estimador de Wald (A Lógica Básica)
 
-O Estimador de Wald calcula o efeito causal dividindo o impacto do instrumento na variável de resultado (Forma Reduzida) pelo impacto do instrumento na variável endógena (Primeiro Estágio). Em termos matemáticos gerais:
+O Estimador de Wald calcula o efeito causal dividindo o impacto do instrumento na variável de resultado pelo impacto do instrumento na variável endógena (Primeiro Estágio).
 
 $$
-\hat{\beta}_{Wald} = \frac{\text{Forma Reduzida}}{\text{Primeiro Estágio}} = \frac{\text{Efeito de } Z \text{ em } Y}{\text{Efeito de } Z \text{ em } X}
+\hat{\beta}_{Wald} = \frac{\Delta \text{Salário}}{\Delta \text{Escolaridade}} = \frac{E[\text{Salário} \mid \text{4º Trimestre}] - E[\text{Salário} \mid \text{Outros Trimestres}]}{E[\text{Escolaridade} \mid \text{4º Trimestre}] - E[\text{Escolaridade} \mid \text{Outros Trimestres}]}
 $$
 
-Aplicando diretamente ao experimento de Angrist e Krueger (1991), a matemática traduz-se na seguinte razão:
-
-$$
-\text{Retorno à Educação} = \frac{\Delta \text{Salário}}{\Delta \text{Escolaridade}} = \frac{E[\text{Salário} \mid \text{4º Trimestre}] - E[\text{Salário} \mid \text{Outros Trimestres}]}{E[\text{Escolaridade} \mid \text{4º Trimestre}] - E[\text{Escolaridade} \mid \text{Outros Trimestres}]}
-$$
-
-Forma Reduzida (Numerador): Qual o impacto de nascer no 4º trimestre no salário?
+Numerador: Qual o impacto de nascer no 4º trimestre no salário?
 
 ```{r}
 mod1 <- lm(log_wage ~ q4, data = ak91)
 coeftest(mod1, vcov = sandwich)
 ```
 
-Primeiro Estágio (Denominador): Qual o impacto de nascer no 4º trimestre nos anos de escolaridade?
+Denominador: Qual o impacto de nascer no 4º trimestre nos anos de escolaridade?
 
 ```{r}
 mod2 <- lm(years_of_schooling ~ q4, data = ak91)
