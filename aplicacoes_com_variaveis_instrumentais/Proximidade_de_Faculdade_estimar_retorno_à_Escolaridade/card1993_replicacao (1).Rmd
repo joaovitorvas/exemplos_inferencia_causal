@@ -1,0 +1,940 @@
+---
+title: "Usando Variação Geográfica na Proximidade de Faculdades para Estimar o Retorno à Escolaridade"
+subtitle: "Replicação de Card (1993) — NBER Working Paper No. 4483"
+author: "Baseado em David Card (Princeton University / NBER)"
+#date: "`r format(Sys.Date(), '%d de %B de %Y')`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    df_print: kable
+    fig_caption: true
+  pdf_document:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  message   = FALSE,
+  warning   = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5,
+  dpi       = 150
+)
+
+# Pacotes necessários
+# install.packages(c("tidyverse","kableExtra","patchwork","scales","ggtext"))
+library(tidyverse)
+library(kableExtra)
+library(patchwork)
+library(scales)
+library(ggtext)
+
+# Tema global ggplot
+theme_card <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+  theme(
+    plot.title       = element_text(size = 13, face = "bold", margin = margin(b = 6)),
+    plot.subtitle    = element_text(size = 11, color = "grey40", margin = margin(b = 10)),
+    plot.caption     = element_text(size = 9,  color = "grey50", margin = margin(t = 8)),
+    axis.title       = element_text(size = 10, color = "grey30"),
+    axis.text        = element_text(size = 9,  color = "grey40"),
+    panel.grid.major = element_line(color = "grey92", linewidth = 0.4),
+    panel.grid.minor = element_blank(),
+    legend.position  = "bottom",
+    legend.text      = element_text(size = 10),
+    legend.title     = element_blank(),
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+}
+
+# Paleta de cores consistente
+COR_MQO  <- "#73726c"   # cinza
+COR_VI   <- "#185FA5"   # azul
+COR_PROX <- "#185FA5"   # azul
+COR_SEM  <- "#888780"   # cinza médio
+```
+
+---
+
+# Motivação e problema
+
+Um dos fatos mais consolidados na economia do trabalho é que trabalhadores mais escolarizados
+recebem salários mais altos. Estudos em praticamente todos os países mostram ganhos salariais de
+**5 a 15% por ano adicional de escolaridade**.
+
+No entanto, esse número não pode ser interpretado diretamente como o **retorno causal** da
+educação. O problema central é que a escolaridade **não é aleatoriamente distribuída** na
+população — os indivíduos fazem suas próprias escolhas educacionais. Dependendo de como essas
+escolhas são feitas, as diferenças salariais observadas podem **superestimar ou subestimar** o
+verdadeiro retorno à educação.
+
+
+## O problema de endogeneidade
+
+Considere o sistema de duas equações abaixo, onde $S_i$ é a escolaridade e $y_i$ é o log do
+salário do indivíduo $i$:
+
+$$S_i = X_i\gamma + v_i \tag{1}$$
+
+$$y_i = X_i\alpha + S_i\beta + u_i \tag{2}$$
+
+O parâmetro $\beta$ representa o **verdadeiro retorno à educação**. Uma regressão por Mínimos
+Quadrados Ordinários (MQO) fornece uma estimativa consistente de $\beta$ somente se $u_i$ e
+$v_i$ forem não correlacionados — ou seja, se $S_i$ for exógeno em (2).
+
+```{r tab-vies}
+# Tabela 0 — Fontes de viés no MQO
+tab_vies <- tibble(
+  `Fonte de Viés`   = c("Viés de habilidade", "Erro de medição"),
+  `Direção`         = c("Para cima (↑)", "Para baixo (↓)"),
+  `Mecanismo`       = c(
+    "Indivíduos mais 'capazes' ganham mais e estudam mais. O MQO atribui parte do prêmio salarial da habilidade à educação.",
+    "Anos de escolaridade são medidos com ruído, gerando viés de atenuação clássico no coeficiente de MQO."
+  )
+)
+
+tab_vies %>%
+  kbl(
+    caption = "Fontes de viés no estimador MQO do retorno à educação",
+    align   = c("l","c","l")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = TRUE) %>%
+  column_spec(1, bold = TRUE, width = "18em") %>%
+  column_spec(2, color = c("#A32D2D","#185FA5"), bold = TRUE, width = "10em") %>%
+  footnote(
+    general = "O efeito líquido é ambíguo. Card (1993) encontra evidências de que o MQO subestima o verdadeiro retorno.",
+    general_title = "Nota:"
+  )
+```
+
+---
+
+# Estratégia de identificação
+
+Para estimar o retorno causal à educação, é preciso uma **fonte exógena de variação** nas
+escolhas educacionais — uma variável que afete a escolaridade, mas não os salários diretamente.
+
+Card (1993) propõe usar a **proximidade geográfica a faculdades de 4 anos** como variável
+instrumental para a escolaridade. A lógica é direta: estudantes que crescem em áreas sem uma
+faculdade próxima enfrentam um custo maior para frequentar o ensino superior, pois perdem a
+opção de morar com os pais durante a graduação. Ademais, a distância da faculdade não deveria afetar o 
+salário de um adulto exceto através da escolaridade que ela permitiu obter, ou seja, a variável afeta o 
+salário somente via escoralidade.
+
+
+## Heterogeneidade do efeito e instrumento de interação
+
+O impacto de uma faculdade próxima varia com o histórico familiar: é maior para filhos de
+famílias com menor escolaridade, que de outra forma parariam de estudar cedo. Isso permite
+usar a **interação entre proximidade e baixo nível educacional dos pais** como instrumento
+adicional — e também testar a validade da exclusão:
+
+$$S_i = X_{1i}\gamma_1 + C_i\delta_0 + C_i \cdot P_i\,\delta_1 + v_i \tag{1b}$$
+
+onde $C_i$ indica proximidade a uma faculdade e $P_i$ indica baixo nível de escolaridade
+parental ($\delta_0, \delta_1 > 0$). Incluindo $C_i$ diretamente na equação de salários e
+usando $C_i \times P_i$ como instrumento, é possível testar se a proximidade tem efeito
+**direto** sobre os salários além do canal educacional.
+
+---
+
+# Dados
+
+Os dados provêm do **National Longitudinal Survey of Young Men (NLSYM)**, iniciado em 1966 com
+5.525 homens entre 14 e 24 anos, com acompanhamento até 1981. Card utiliza a amostra da rodada
+de **1976** (3.613 observações com educação válida; 3.010 com salário válido).
+
+```{r tab1}
+# Tabela 1 — Características da amostra (reprodução da Tabela 1 do artigo)
+tab1 <- tibble(
+  Característica = c(
+    "Distribuição etária em 1966 (%):",
+    "  Idade 14–15",
+    "  Idade 16–17",
+    "  Idade 18–20",
+    "  Idade 21–24",
+    "Distribuição regional em 1966 (%):",
+    "  Nordeste",
+    "  Meio-Oeste",
+    "  Sul",
+    "  Oeste",
+    "Viveu em SMSA em 1966 (%)",
+    "Viveu perto de faculdade 4 anos em 1966 (%)",
+    "Estrutura familiar aos 14 anos (%):",
+    "  Pai e mãe presentes",
+    "  Somente mãe",
+    "Educação parental média:",
+    "  Educação da mãe (anos)",
+    "  Educação do pai (anos)",
+    "Percentual negro (%)",
+    "Score médio no KWW",
+    "Entrevistado em 1976 (%)",
+    "Educação média em 1976 (anos)",
+    "Vive no Sul em 1976 (%)",
+    "Tamanho da amostra"
+  ),
+  `Amostra total NLS-YM` = c(
+    "", "25,9", "24,9", "23,1", "26,1",
+    "", "20,2", "25,4", "41,1", "13,3",
+    "66,0", "69,2",
+    "", "76,8", "11,8",
+    "", "10,3", "9,4",
+    "27,5", "33,0", "70,7", "13,2", "39,6", "5.225"
+  ),
+  `Subsample 1976 — Educação válida` = c(
+    "", "25,3", "23,8", "24,1", "26,7",
+    "", "20,0", "26,3", "41,3", "12,5",
+    "64,3", "67,8",
+    "", "79,2", "10,0",
+    "", "10,4", "10,0",
+    "23,0", "33,5", "100,0", "13,2", "40,0", "3.613"
+  ),
+  `Subsample 1976 — Salário e Educação válidos` = c(
+    "", "25,5", "24,1", "24,6", "25,8",
+    "", "20,7", "26,0", "41,4", "11,9",
+    "65,0", "68,2",
+    "", "78,9", "10,1",
+    "", "10,3", "10,0",
+    "23,0", "33,5", "100,0", "13,3", "40,3", "3.010"
+  )
+)
+
+tab1 %>%
+  kbl(
+    caption = "Tabela 1 — Características da amostra do National Longitudinal Survey of Young Men",
+    align   = c("l","c","c","c")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = TRUE,
+                font_size = 11) %>%
+  row_spec(c(1,6,13,16), bold = TRUE, background = "#f5f5f5") %>%
+  row_spec(24, bold = TRUE) %>%
+  column_spec(1, width = "22em") %>%
+  footnote(
+    general = "SMSA = Standard Metropolitan Statistical Area. KWW = Knowledge of the World of Work (28 itens). O NLSYM sobre-amostrou bairros com alta concentração de residentes não-brancos.",
+    general_title = "Notas:"
+  )
+```
+
+---
+
+# Figura 1 — Educação média por quartil de educação prevista
+
+A análise gráfica abaixo reproduz a Figura 1 do artigo. Para cada quartil de escolaridade
+prevista (estimada em uma regressão sem o indicador de proximidade), compara-se a educação
+média entre quem cresceu com e sem uma faculdade de 4 anos próxima.
+
+```{r figura1, fig.cap="Figura 1 (reprodução) — Média de anos de educação por quartil de educação prevista, separando grupos com e sem faculdade próxima. Fonte: Card (1993), Figura 1."}
+# Dados da Figura 1
+fig1_dados <- tibble(
+  quartil     = c(1, 2, 3, 4, 1, 2, 3, 4),
+  educacao    = c(11.0, 13.0, 13.9, 15.2,
+                  12.1, 13.4, 14.3, 15.4),
+  grupo       = rep(c("Sem faculdade próxima", "Com faculdade próxima"), each = 4)
+) %>%
+  mutate(
+    grupo = factor(grupo, levels = c("Sem faculdade próxima", "Com faculdade próxima")),
+    diff  = if_else(quartil == 1, "Δ = 1,1 anos", NA_character_)
+  )
+
+# Diferenças por quartil (para anotação)
+diffs <- tibble(
+  quartil  = 1:4,
+  delta    = c(1.1, 0.4, 0.4, 0.2),
+  y_label  = c(11.55, 13.20, 14.10, 15.30)
+)
+
+ggplot(fig1_dados, aes(x = quartil, y = educacao,
+                       color = grupo, shape = grupo,
+                       linetype = grupo)) +
+  geom_line(linewidth = 1.0) +
+  geom_point(size = 4) +
+  # Anotação das diferenças
+  geom_segment(data = diffs,
+               aes(x = quartil - 0.05, xend = quartil - 0.05,
+                   y = y_label - delta/2, yend = y_label + delta/2),
+               inherit.aes = FALSE,
+               color = "grey50", linewidth = 0.4,
+               arrow = arrow(ends = "both", length = unit(0.06,"inches"), type = "open")) +
+  geom_label(data = diffs,
+             aes(x = quartil + 0.28, y = y_label,
+                 label = paste0("Δ=", delta)),
+             inherit.aes = FALSE,
+             size = 3, color = "grey30", label.size = 0,
+             fill = "white") +
+  scale_x_continuous(
+    breaks = 1:4,
+    labels = c("1º\n(menor prev.)", "2º", "3º", "4º\n(maior prev.)")
+  ) +
+  scale_y_continuous(
+    breaks = seq(10, 16, 1),
+    limits = c(10.5, 16)
+  ) +
+  scale_color_manual(values = c("Sem faculdade próxima" = COR_SEM,
+                                 "Com faculdade próxima" = COR_PROX)) +
+  scale_shape_manual(values = c("Sem faculdade próxima" = 15,
+                                 "Com faculdade próxima" = 16)) +
+  scale_linetype_manual(values = c("Sem faculdade próxima" = "dashed",
+                                    "Com faculdade próxima" = "solid")) +
+  labs(
+    title    = "Média de anos de educação por quartil de educação prevista",
+    subtitle = "A presença de faculdade próxima tem maior impacto no 1º quartil (menor escolaridade prevista)",
+    x        = "Quartil de educação prevista",
+    y        = "Média de anos de educação",
+    caption  = "Nota: equação de previsão estimada na subsamplam sem faculdade próxima.\nFonte: Reprodução da Figura 1 de Card (1993)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom")
+```
+
+> **Leitura:** No 1º quartil (menor escolaridade prevista), a presença de uma faculdade próxima
+> aumenta a educação média em **~1,1 ano**. Nos quartis superiores, o efeito cai para 0,2–0,4
+> anos — evidência de heterogeneidade no impacto do instrumento. Esses são exatamente os homens
+> de famílias com baixa escolaridade parental em zonas rurais do Sul.
+
+---
+
+# Estimativas MQO (Tabela 2)
+
+A Tabela 2 apresenta regressões de salário por MQO com especificações progressivamente mais
+ricas. A equação básica estimada é:
+
+$$\ln(w_i) = \alpha_0 + \alpha_1 S_i + \alpha_2 \text{Exp}_i + \alpha_3 \text{Exp}_i^2 + \alpha_4 \text{Negro}_i + \alpha_5 \text{Sul}_i + \alpha_6 \text{SMSA}_i + \varepsilon_i$$
+
+```{r tab2}
+# Tabela 2 — Modelos MQO (reprodução da Tabela 2 do artigo)
+tab2 <- tibble(
+  Variável = c(
+    "1. Educação",
+    "",
+    "2. Experiência",
+    "",
+    "3. Experiência² / 100",
+    "",
+    "4. Indicador negro",
+    "",
+    "5. Vive no Sul",
+    "",
+    "6. Vive em SMSA",
+    "",
+    "7. Região em 1966 (8 ind.)",
+    "8. SMSA em 1966",
+    "9. Educação parental (ef. principais)",
+    "10. Classes ed. parental interagidas",
+    "11. Estrutura familiar (2 ind.)",
+    "12. R²",
+    "13. p-valor — background familiar"
+  ),
+  `(1)` = c("0,074","(0,004)","0,084","(0,007)","-0,224","(0,032)","-0,190","(0,017)","-0,125","(0,015)","0,161","(0,015)","não","não","não","não","não","0,291","—"),
+  `(2)` = c("0,075","(0,003)","0,085","(0,007)","-0,229","(0,032)","-0,199","(0,018)","-0,148","(0,026)","0,136","(0,020)","sim","sim","não","não","não","0,300","—"),
+  `(3)` = c("0,073","(0,004)","0,085","(0,007)","-0,230","(0,032)","-0,194","(0,019)","-0,146","(0,026)","0,136","(0,020)","sim","sim","sim","não","não","0,301","0,235"),
+  `(4)` = c("0,074","(0,004)","0,085","(0,007)","-0,226","(0,032)","-0,194","(0,019)","-0,145","(0,026)","0,137","(0,020)","sim","sim","sim","sim","não","0,303","0,462"),
+  `(5)` = c("0,073","(0,004)","0,085","(0,007)","-0,229","(0,032)","-0,189","(0,019)","-0,146","(0,026)","0,138","(0,020)","sim","sim","sim","sim","sim","0,304","0,165")
+)
+
+tab2 %>%
+  kbl(
+    caption = "Tabela 2 — Modelos MQO para log do salário-hora em 1976 (n = 3.010)",
+    align   = c("l","c","c","c","c","c")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  row_spec(c(1,3,5,7,9,11), bold = TRUE) %>%
+  row_spec(c(2,4,6,8,10,12), color = "grey50") %>%
+  row_spec(18, bold = TRUE, background = "#eef4fb") %>%
+  column_spec(1, width = "20em") %>%
+  footnote(
+    general = "Erros padrão entre parênteses. Variável dependente: log do salário-hora em 1976. Média e DP da variável dependente: 6,262 e 0,444.",
+    alphabet = c(
+      "Educação da mãe e do pai em anos, mais indicadores para valores imputados.",
+      "Indicadores para 8 classes de educação da mãe e do pai.",
+      "Indicadores para pai e mãe presentes aos 14 anos e para mãe solteira."
+    ),
+    general_title = "Notas:"
+  )
+```
+
+```{r fig-tab2, fig.cap="Coeficiente de educação MQO com intervalo de ±1 erro padrão — cinco especificações da Tabela 2. A estabilidade do coeficiente (~7,3–7,5%) sugere ausência de viés de variável omitida simples, mas não resolve o problema de endogeneidade."}
+# Gráfico do coeficiente de educação por especificação
+tab2_plot <- tibble(
+  spec    = factor(paste0("(", 1:5, ")"),
+                   levels = paste0("(", 1:5, ")")),
+  label   = c("Básica", "+Região\n+SMSA 66", "+Ed.\nParental", "+Interações\nParentais", "+Estrutura\nFamiliar"),
+  coef    = c(0.074, 0.075, 0.073, 0.074, 0.073),
+  se      = c(0.004, 0.003, 0.004, 0.004, 0.004)
+)
+
+ggplot(tab2_plot, aes(x = spec, y = coef)) +
+  geom_hline(yintercept = 0.073, linetype = "dashed", color = "grey70", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = coef - se, ymax = coef + se),
+                width = 0.15, color = COR_MQO, linewidth = 0.8) +
+  geom_point(size = 5, color = COR_MQO) +
+  geom_text(aes(label = sprintf("%.3f", coef)),
+            vjust = -1.2, size = 3.5, color = COR_MQO, fontface = "bold") +
+  scale_x_discrete(labels = function(x) {
+    tab2_plot$label[match(x, tab2_plot$spec)]
+  }) +
+  scale_y_continuous(
+    limits = c(0.060, 0.090),
+    breaks = seq(0.060, 0.090, 0.005),
+    labels = scales::number_format(accuracy = 0.001)
+  ) +
+  annotate("text", x = 0.6, y = 0.073, label = "linha de referência: 0,073",
+           hjust = 0, vjust = -0.5, size = 3, color = "grey50") +
+  labs(
+    title    = "Estabilidade do coeficiente de educação MQO",
+    subtitle = "Coeficiente ± 1 erro padrão em cinco especificações progressivas",
+    x        = "Especificação",
+    y        = "Coeficiente de educação (β)",
+    caption  = "Variável dependente: log do salário-hora em 1976. n = 3.010.\nFonte: Reprodução da Tabela 2 de Card (1993)."
+  ) +
+  theme_card()
+```
+
+> **Interpretação:** O coeficiente de educação é notavelmente estável em torno de
+> **7,3–7,5%** por ano adicional de escolaridade. Acrescentar controles de histórico
+> familiar não altera o resultado — as variáveis de background **nunca** são
+> conjuntamente significativas (p > 0,10).
+
+---
+
+# Estimativas por variáveis instrumentais (Tabela 3)
+
+Usando a proximidade a faculdades de 4 anos como instrumento para escolaridade, Card estima
+o retorno à educação em dois painéis alternativos:
+
+- **Painel A:** experiência e experiência² tratadas como exógenas
+- **Painel B:** experiência instrumentalizada por idade e idade² (pois $\text{Exp} = \text{idade} - S_i - 6$ também é endógena quando $S_i$ o é)
+
+```{r tab3}
+# Tabela 3 — Forma reduzida e modelos estruturais
+tab3 <- tibble(
+  ` ` = c(
+    "**Painel A — Experiência exógena**","",
+    "1. Vive perto de faculdade em 1966","",
+    "2. Educação (coef. VI)","",
+    "3. Controles de background familiar","",
+    "**Painel B — Experiência endógena**","",
+    "4. Vive perto de faculdade em 1966","",
+    "5. Educação (coef. VI)","",
+    "6. Controles de background familiar",""
+  ),
+  `Forma Reduzida: Educação (1)` = c(
+    "","","0,320","(0,088)","—","","não","","","","0,382","(0,114)","—","","não",""
+  ),
+  `Forma Reduzida: Educação (2)` = c(
+    "","","0,322","(0,083)","—","","sim","","","","0,365","(0,105)","—","","sim",""
+  ),
+  `Forma Reduzida: Salários (3)` = c(
+    "","","0,042","(0,018)","—","","não","","","","0,047","(0,019)","—","","não",""
+  ),
+  `Forma Reduzida: Salários (4)` = c(
+    "","","0,045","(0,018)","—","","sim","","","","0,048","(0,019)","—","","sim",""
+  ),
+  `VI: Retorno à Educ. (5)` = c(
+    "","","—","","0,132","(0,055)","não","","","","—","","0,122","(0,046)","não",""
+  ),
+  `VI: Retorno à Educ. (6)` = c(
+    "","","—","","0,140","(0,055)","sim","","","","—","","0,132","(0,049)","sim",""
+  )
+)
+
+tab3 %>%
+  kbl(
+    caption = "Tabela 3 — Estimativas de forma reduzida e variáveis instrumentais (n = 3.010)",
+    align   = c("l","c","c","c","c","c","c")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  add_header_above(c(" " = 1,
+                     "Educação" = 2,
+                     "Salários" = 2,
+                     "VI — Retorno" = 2)) %>%
+  add_header_above(c(" " = 1,
+                     "Forma Reduzida" = 4,
+                     "Modelos Estruturais" = 2)) %>%
+  row_spec(c(1, 9), bold = TRUE, background = "#eef4fb") %>%
+  row_spec(c(4, 6, 8, 12, 14, 16), color = "grey50") %>%
+  column_spec(1, width = "18em") %>%
+  footnote(
+    general = "Erros padrão entre parênteses. Todos os modelos incluem indicador negro, sul e SMSA em 1976, região e SMSA em 1966, experiência e experiência². No Painel B, experiência é instrumentalizada por idade e idade².",
+    alphabet = c(
+      "14 variáveis: educação da mãe e do pai, indicadores de valores imputados, interações das classes de educação parental e indicadores de estrutura familiar."
+    ),
+    general_title = "Notas:"
+  )
+```
+
+```{r fig-tab3, fig.cap="Comparação entre estimativas MQO e VI do retorno à educação — quatro combinações de Painel (A/B) e controles de background familiar (com/sem). A linha pontilhada indica o MQO de referência."}
+# Gráfico MQO vs VI
+tab3_plot <- tibble(
+  especificacao = factor(
+    c("A — sem\nbackground","A — com\nbackground","B — sem\nbackground","B — com\nbackground"),
+    levels = c("A — sem\nbackground","A — com\nbackground","B — sem\nbackground","B — com\nbackground")
+  ),
+  mqo  = rep(0.073, 4),
+  vi   = c(0.132, 0.140, 0.122, 0.132),
+  ep   = c(0.055, 0.055, 0.046, 0.049)
+) %>%
+  pivot_longer(cols = c(mqo, vi), names_to = "metodo", values_to = "coef") %>%
+  mutate(
+    ep_val = if_else(metodo == "vi", ep, 0.004),
+    metodo = factor(if_else(metodo == "mqo", "MQO", "VI (proximidade)"),
+                    levels = c("MQO","VI (proximidade)"))
+  )
+
+ggplot(tab3_plot, aes(x = especificacao, y = coef,
+                      fill = metodo, color = metodo)) +
+  geom_col(position = position_dodge(width = 0.6), width = 0.5, alpha = 0.85) +
+  geom_errorbar(
+    aes(ymin = coef - ep_val, ymax = coef + ep_val),
+    position = position_dodge(width = 0.6),
+    width = 0.18, linewidth = 0.7
+  ) +
+  geom_text(
+    aes(label = sprintf("%.3f", coef), y = coef + ep_val + 0.005),
+    position = position_dodge(width = 0.6),
+    size = 3, vjust = 0, fontface = "bold"
+  ) +
+  scale_fill_manual(values  = c("MQO" = COR_MQO, "VI (proximidade)" = COR_VI)) +
+  scale_color_manual(values = c("MQO" = COR_MQO, "VI (proximidade)" = COR_VI)) +
+  scale_y_continuous(
+    limits = c(0, 0.22),
+    breaks = seq(0, 0.20, 0.05),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(
+    title    = "MQO vs. Variáveis Instrumentais — retorno à educação",
+    subtitle = "VI é 50–90% maior que MQO; instrumento: presença de faculdade 4 anos no mercado local em 1966",
+    x        = "Especificação",
+    y        = "Retorno estimado por ano de educação",
+    caption  = "Barras de erro = ±1 EP. Painel A: experiência exógena. Painel B: experiência endógena (instrumentalizada por idade²).\nFonte: Reprodução da Tabela 3 de Card (1993)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom")
+```
+
+> **Resultado central:** Crescer perto de uma faculdade tem efeito positivo e significativo
+> tanto sobre a educação (+0,32 a +0,38 anos) quanto sobre os salários (+4,2 a +4,8%).
+> As estimativas de VI ficam entre **12,2% e 14,0%** — contra 7,3% do MQO. Embora os
+> erros padrão do VI sejam relativamente grandes, a diferença é economicamente substancial.
+
+---
+
+# Robustez — especificações alternativas (Tabela 4)
+
+```{r tab4}
+# Tabela 4 — Especificações alternativas
+tab4 <- tibble(
+  Especificação = c(
+    "1. Especificação básica (salários 1976, n=3.010)",
+    "2. Salários de 1978 (n=2.639)",
+    "3. + Score KWW (proxy de habilidade, n=2.963)",
+    "4. + KWW endógeno, instrumentado por QI (n=2.040)",
+    "5. Instrumento: proximidade a faculdade pública",
+    "6. Instrumento: proximidade a faculdades 2 e 4 anos",
+    "7. Subsample idade 14–19 em 1966 (n=2.037)"
+  ),
+  MQO = c("0,073\n(0,004)","0,066\n(0,006)","0,055\n(0,004)","0,061\n(0,005)","= linha 1","= linha 1","0,076\n(0,006)"),
+  VI  = c("0,132\n(0,049)","0,117\n(0,061)","0,136\n(0,078)","0,089\n(0,085)","0,194\n(0,059)","0,117\n(0,047)","0,094\n(0,064)"),
+  `VI / MQO` = c("1,81×","1,77×","2,47×","1,46×","~2,66×","1,60×","1,24×")
+)
+
+tab4 %>%
+  kbl(
+    caption = "Tabela 4 — Estimativas MQO e VI do retorno à educação: especificações alternativas",
+    align   = c("l","c","c","c")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  row_spec(1, bold = TRUE, background = "#eef4fb") %>%
+  column_spec(1, width = "26em") %>%
+  column_spec(4, bold = TRUE, color = "#185FA5") %>%
+  footnote(
+    general = "Erros padrão entre parênteses. Variável dependente: log do salário-hora (1976, salvo linha 2). Instrumento padrão: presença de faculdade 4 anos no mercado local em 1966, salvo indicado. Educação e experiência tratadas como endógenas em todas as especificações de VI.",
+    alphabet = c(
+      "No VI da linha 4, o KWW é tratado como endógeno e o escore de QI é adicionado ao conjunto de instrumentos."
+    ),
+    general_title = "Notas:"
+  )
+```
+
+```{r fig-tab4, fig.height=5.5, fig.cap="Robustez das estimativas de retorno à educação: MQO e VI com intervalo de ±1 EP para sete especificações alternativas. O VI supera o MQO em todos os casos."}
+# Dados para o gráfico
+tab4_plot <- tibble(
+  spec  = factor(
+    c("(1) Básica 1976","(2) Salários 1978","(3) + KWW",
+      "(4) + KWW endógeno","(5) Prox. pública","(6) Prox. 2+4 anos","(7) Idade 14–19"),
+    levels = rev(c("(1) Básica 1976","(2) Salários 1978","(3) + KWW",
+                   "(4) + KWW endógeno","(5) Prox. pública","(6) Prox. 2+4 anos","(7) Idade 14–19"))
+  ),
+  mqo_c = c(0.073,0.066,0.055,0.061,0.073,0.073,0.076),
+  mqo_e = c(0.004,0.006,0.004,0.005,0.004,0.004,0.006),
+  vi_c  = c(0.132,0.117,0.136,0.089,0.194,0.117,0.094),
+  vi_e  = c(0.049,0.061,0.078,0.085,0.059,0.047,0.064)
+) %>%
+  pivot_longer(
+    cols = c(mqo_c, vi_c),
+    names_to  = "metodo_c",
+    values_to = "coef"
+  ) %>%
+  mutate(
+    ep = if_else(metodo_c == "mqo_c", mqo_e, vi_e),
+    metodo = factor(if_else(metodo_c == "mqo_c", "MQO", "VI"),
+                    levels = c("MQO","VI"))
+  )
+
+ggplot(tab4_plot, aes(x = coef, y = spec, color = metodo, shape = metodo)) +
+  geom_vline(xintercept = 0.073, linetype = "dotted", color = "grey60", linewidth = 0.6) +
+  geom_errorbarh(aes(xmin = coef - ep, xmax = coef + ep),
+                 height = 0.25, linewidth = 0.7) +
+  geom_point(size = 4) +
+  geom_text(aes(label = sprintf("%.3f", coef)),
+            nudge_y = 0.35, size = 3, fontface = "bold") +
+  scale_color_manual(values = c("MQO" = COR_MQO, "VI" = COR_VI)) +
+  scale_shape_manual(values = c("MQO" = 15, "VI" = 16)) +
+  scale_x_continuous(
+    limits = c(0, 0.28),
+    breaks = seq(0, 0.25, 0.05),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  annotate("text", x = 0.073, y = 0.5, label = "MQO base\n(0,073)",
+           hjust = -0.1, vjust = 0, size = 3, color = "grey50") +
+  labs(
+    title    = "Robustez das estimativas — MQO vs. VI",
+    subtitle = "Pontos com intervalos de ±1 EP para sete especificações alternativas",
+    x        = "Retorno estimado por ano de educação",
+    y        = NULL,
+    caption  = "Fonte: Reprodução da Tabela 4 de Card (1993)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom")
+```
+
+> **Achados de robustez:**
+>
+> - Incluir o score KWW (proxy de habilidade) **reduz** o MQO em ~25%, mas o VI permanece
+>   alto — sugerindo que parte do "viés de habilidade" do MQO é, na verdade, endogeneidade
+>   da educação.
+> - Restringir à faixa etária 14–19 em 1966 (para evitar causalidade reversa) mantém o VI
+>   acima do MQO (+24%).
+> - O VI com proximidade a faculdade **pública** produz a maior estimativa (0,194), pois o
+>   instrumento é mais forte (custo de acesso mais reduzido).
+> - A conclusão é robusta: **as estimativas de VI são consistentemente 25–165% acima do MQO**.
+
+---
+
+# Validade do instrumento (Tabela 5)
+
+Para que a proximidade seja um instrumento válido, ela **não pode ter efeito direto** sobre os
+salários além de operar via educação. Card testa isso usando a interação $C_i \times P_i$ como
+instrumento adicional — que por hipótese não tem efeito direto sobre salários (assumindo que o
+efeito direto da proximidade não varia com o background familiar).
+
+```{r tab5}
+# Tabela 5 — Validade do instrumento
+tab5 <- tibble(
+  Variável = c(
+    "1. Vive perto de faculdade em 1966",
+    "   (erro padrão)",
+    "2. Vive perto × background baixo",
+    "   (erro padrão)",
+    "3. Retorno à educação (VI)",
+    "   (erro padrão)",
+    "4. Controles de background familiar"
+  ),
+  `Forma Red. Educação (1)` = c("0,154","(0,135)","0,462","(0,186)","—","","sim"),
+  `Forma Red. Salários (2)` = c("0,029","(0,024)","0,043","(0,032)","—","","sim"),
+  `VI col. (3)` = c("0,015","(0,029)","—","","0,093","(0,065)","sim"),
+  `VI col. (4)` = c("0,013","(0,024)","—","","0,097","(0,048)","sim")
+)
+
+tab5 %>%
+  kbl(
+    caption = "Tabela 5 — Estimativas de VI usando interação entre background familiar e proximidade a faculdades (n = 3.010)",
+    align   = c("l","c","c","c","c")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                full_width = TRUE, font_size = 11) %>%
+  add_header_above(c(" " = 1,
+                     "Forma Reduzida" = 2,
+                     "Modelos Estruturais de Salários" = 2)) %>%
+  row_spec(c(2,4,6), color = "grey50") %>%
+  row_spec(c(3,4), background = "#fff8e1") %>%
+  row_spec(c(5,6), bold = TRUE, background = "#eef4fb") %>%
+  column_spec(1, width = "18em") %>%
+  footnote(
+    general = "Erros padrão entre parênteses. Background baixo = nenhum dos pais concluiu o ensino médio. Na coluna (3), instrumento: interação de baixo background × proximidade. Na coluna (4), instrumentos: interações de 8 classes de educação parental × proximidade. Experiência tratada como endógena.",
+    general_title = "Notas:"
+  )
+```
+
+```{r fig-tab5, fig.height=6, fig.cap="Painel superior: efeito da proximidade a faculdades na educação por nível de background familiar — o efeito é quase 4× maior para filhos de pais sem ensino médio. Painel inferior: síntese de todos os estimadores de VI em comparação com o MQO."}
+# Painel A — Heterogeneidade do efeito por background
+p_hetero <- tibble(
+  grupo  = factor(c("Background alto\n(pais c/ ensino médio)",
+                    "Background baixo\n(pais s/ ensino médio)"),
+                  levels = c("Background alto\n(pais c/ ensino médio)",
+                             "Background baixo\n(pais s/ ensino médio)")),
+  base   = c(0.154, 0.154),
+  extra  = c(0.000, 0.462),
+  total  = c(0.154, 0.616)
+) %>%
+  pivot_longer(cols = c(base, extra), names_to = "componente", values_to = "valor") %>%
+  mutate(componente = factor(if_else(componente == "base",
+                                     "Efeito base (δ₀ = 0,154)",
+                                     "Efeito adicional p/ baixo background (δ₁ = 0,462)"),
+                             levels = c("Efeito base (δ₀ = 0,154)",
+                                        "Efeito adicional p/ baixo background (δ₁ = 0,462)")))
+
+ggplot(p_hetero, aes(x = grupo, y = valor, fill = componente)) +
+  geom_col(width = 0.5, alpha = 0.85) +
+  geom_text(
+    data = tibble(grupo = factor(
+      c("Background alto\n(pais c/ ensino médio)",
+        "Background baixo\n(pais s/ ensino médio)"),
+      levels = levels(p_hetero$grupo)
+    ), total = c(0.154, 0.616)),
+    aes(x = grupo, y = total + 0.025, label = sprintf("Total: %.3f anos", total)),
+    inherit.aes = FALSE, size = 3.5, fontface = "bold", color = "grey20"
+  ) +
+  scale_fill_manual(values = c(
+    "Efeito base (δ₀ = 0,154)"                          = alpha(COR_VI, 0.4),
+    "Efeito adicional p/ baixo background (δ₁ = 0,462)" = alpha(COR_VI, 0.85)
+  )) +
+  scale_y_continuous(limits = c(0, 0.75), labels = scales::number_format(accuracy = 0.01)) +
+  labs(
+    title    = "Heterogeneidade do efeito da proximidade na educação",
+    subtitle = "Decomposto em efeito base e efeito adicional para famílias com baixa escolaridade parental",
+    x        = NULL,
+    y        = "Efeito na educação (anos)",
+    caption  = "Fonte: Reprodução da Tabela 5 de Card (1993)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom")
+
+# Painel B — Síntese de todos os estimadores
+p_sintese <- tibble(
+  estimador = factor(
+    c("MQO\n(referência)",
+      "VI básico\n(prox. 4 anos)",
+      "VI interação\nbinária",
+      "VI interação\n8 classes",
+      "VI 9 interações\n(over-ID)"),
+    levels = c("MQO\n(referência)",
+               "VI básico\n(prox. 4 anos)",
+               "VI interação\nbinária",
+               "VI interação\n8 classes",
+               "VI 9 interações\n(over-ID)")
+  ),
+  coef = c(0.073, 0.132, 0.093, 0.097, 0.115),
+  ep   = c(0.004, 0.049, 0.065, 0.048, 0.034),
+  tipo = c("MQO","VI","VI","VI","VI")
+)
+
+ggplot(p_sintese, aes(x = estimador, y = coef, color = tipo, shape = tipo)) +
+  geom_hline(yintercept = 0.073, linetype = "dashed", color = "grey70", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = coef - ep, ymax = coef + ep),
+                width = 0.2, linewidth = 0.8) +
+  geom_point(size = 5) +
+  geom_text(aes(label = sprintf("%.3f", coef)),
+            vjust = -1.3, size = 3.5, fontface = "bold") +
+  scale_color_manual(values = c("MQO" = COR_MQO, "VI" = COR_VI)) +
+  scale_shape_manual(values = c("MQO" = 15,  "VI" = 16)) +
+  scale_y_continuous(
+    limits = c(0, 0.22),
+    breaks = seq(0, 0.20, 0.05),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  annotate("text", x = 0.6, y = 0.073, label = "MQO = 0,073",
+           hjust = 0, vjust = -0.5, size = 3, color = "grey50") +
+  labs(
+    title    = "Síntese — todos os estimadores de VI vs. MQO",
+    subtitle = "Todos os estimadores de VI superam o MQO; instrumento válido (efeito direto = 0)",
+    x        = NULL,
+    y        = "Retorno por ano de educação",
+    caption  = "Barras de erro = ±1 EP. O over-ID test não rejeita validade conjunta (p = 0,28–0,38).\nFonte: Síntese das Tabelas 3–5 de Card (1993)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom")
+```
+
+> **Conclusão do teste de validade:** O efeito direto da proximidade sobre os salários é
+> estatisticamente **insignificante** em todas as especificações (coeficiente ≈ 0,013–0,015,
+> EP ≈ 0,024–0,029). O instrumento age exclusivamente via decisão educacional. O teste de
+> sobre-identificação não rejeita a validade conjunta dos instrumentos (p = 0,28–0,38).
+
+---
+
+# Interpretação econômica
+
+Por que as estimativas de VI são maiores que as de MQO? Card propõe dois canais complementares.
+
+## Canal 1 — Viés de medição domina o viés de habilidade
+
+O MQO é afetado por dois vieses opostos: o viés de habilidade (para cima, ↑) e o erro de
+medição (para baixo, ↓). Os dados sugerem que o efeito líquido é **para baixo**: o MQO
+*subestima* o verdadeiro retorno. O erro de medição na escolaridade é da ordem de 10% da
+variância observada, implicando um viés de atenuação de 10–15% — mas a diferença VI–MQO
+é muito maior (50–90%), sugerindo que outros fatores estão em jogo.
+
+## Canal 2 — Heterogeneidade nos retornos (LATE)
+
+O instrumento de proximidade move a escolaridade principalmente dos indivíduos com **maior
+retorno marginal** à educação — os filhos de famílias pobres que paravam de estudar "cedo
+demais" por restrição de crédito. O estimador de VI capta o **Efeito Local Médio do
+Tratamento (LATE)** para esse subgrupo.
+
+No modelo de Becker (1967), indivíduos investem em educação até que o retorno marginal iguale
+sua taxa de desconto. Famílias de baixa renda enfrentam taxas de financiamento mais altas, e
+por isso seus filhos têm retornos marginais mais elevados — foram forçados a parar cedo demais:
+
+```{r fig-mecanismo, fig.height=4, fig.cap="Esquema do mecanismo econômico: famílias de baixa renda param de estudar mais cedo por restrição de crédito (ponto E*_baixo), apesar de terem retornos marginais mais altos. A presença de uma faculdade próxima reduz o custo e desloca o ótimo para E*_alto."}
+# Gráfico do mecanismo teórico (modelo de Becker)
+x_seq <- seq(0, 20, length.out = 300)
+
+curvas <- tibble(
+  anos_educ = rep(x_seq, 3),
+  grupo = rep(c("Retorno marginal decrescente",
+                "Taxa de desconto — família de baixa renda",
+                "Taxa de desconto — família de alta renda (ou c/ faculdade próxima)"),
+              each = 300),
+  valor = c(
+    0.25 * exp(-0.08 * x_seq),
+    rep(0.115, 300),
+    rep(0.073, 300)
+  )
+)
+
+# Pontos de equilíbrio
+e_baixo <- log(0.25 / 0.115) / 0.08
+e_alto  <- log(0.25 / 0.073) / 0.08
+
+ggplot(curvas, aes(x = anos_educ, y = valor,
+                   color = grupo, linetype = grupo)) +
+  geom_line(linewidth = 1.0) +
+  # Linhas verticais dos equilíbrios
+  geom_vline(xintercept = e_baixo, linetype = "dotted", color = "#A32D2D", linewidth = 0.7) +
+  geom_vline(xintercept = e_alto,  linetype = "dotted", color = "#185FA5", linewidth = 0.7) +
+  # Anotações
+  annotate("label", x = e_baixo, y = 0.22,
+           label = sprintf("E*\nbaixa renda\n(%.1f anos)", e_baixo),
+           size = 3, color = "#A32D2D", label.size = 0, fill = "white") +
+  annotate("label", x = e_alto, y = 0.22,
+           label = sprintf("E*\nalta renda ou\nfaculdade próxima\n(%.1f anos)", e_alto),
+           size = 3, color = "#185FA5", label.size = 0, fill = "white") +
+  scale_color_manual(values = c(
+    "Retorno marginal decrescente"                                        = "grey20",
+    "Taxa de desconto — família de baixa renda"                           = "#A32D2D",
+    "Taxa de desconto — família de alta renda (ou c/ faculdade próxima)"  = "#185FA5"
+  )) +
+  scale_linetype_manual(values = c(
+    "Retorno marginal decrescente"                                        = "solid",
+    "Taxa de desconto — família de baixa renda"                           = "dashed",
+    "Taxa de desconto — família de alta renda (ou c/ faculdade próxima)"  = "longdash"
+  )) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.27)) +
+  scale_x_continuous(limits = c(0, 20), breaks = seq(0, 20, 4)) +
+  labs(
+    title    = "Mecanismo econômico — modelo de Becker (1967)",
+    subtitle = "Famílias de baixa renda param antes do ótimo social por restrição de crédito",
+    x        = "Anos de educação",
+    y        = "Taxa de retorno / taxa de desconto",
+    caption  = "Interpretação teórica de Card (1993) com base em Becker (1967)."
+  ) +
+  theme_card() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 9))
+```
+
+---
+
+# Conclusão
+
+```{r tab-conclusao}
+# Tabela-síntese final
+tab_concl <- tibble(
+  Resultado                                   = c(
+    "Retorno MQO por ano de educação",
+    "Retorno VI (usando proximidade)",
+    "Efeito da proximidade na educação",
+    "Efeito da proximidade nos salários",
+    "Efeito direto da proximidade nos salários",
+    "Razão VI / MQO"
+  ),
+  Estimativa = c(
+    "~7,3%",
+    "12–14%",
+    "+0,32 a +0,38 anos",
+    "+4,2 a +4,8%",
+    "~0,015 (não significativo)",
+    "1,50 a 1,92×"
+  ),
+  Interpretação = c(
+    "Estimativa de referência (MQO), potencialmente subestimada",
+    "Retorno causal para filhos de famílias com baixa escolaridade",
+    "Crescer perto de uma faculdade eleva a escolaridade",
+    "Efeito indireto via educação — consistente com o instrumento",
+    "Instrumento válido — a proximidade age só via educação",
+    "MQO subestima o verdadeiro retorno em 50–90%"
+  )
+)
+
+tab_concl %>%
+  kbl(
+    caption = "Síntese dos principais resultados de Card (1993)",
+    align   = c("l","c","l")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = TRUE) %>%
+  row_spec(c(2, 6), bold = TRUE, background = "#eef4fb") %>%
+  row_spec(5, background = "#eafbea") %>%
+  column_spec(1, width = "20em") %>%
+  column_spec(2, bold = TRUE, width = "10em") %>%
+  footnote(
+    general = "Fonte: Síntese das Tabelas 2–5 e Figura 1 de Card (1993).",
+    general_title = ""
+  )
+```
+
+A análise de Card (1993) mostra que:
+
+1. **O MQO subestima** o verdadeiro retorno à educação — provavelmente porque o viés de
+   medição supera o viés de habilidade.
+
+2. Os retornos à educação são **particularmente altos** para filhos de famílias com baixa
+   escolaridade parental — grupo que mais se beneficia da presença de uma faculdade próxima.
+
+3. Esses resultados são **consistentes com um modelo de restrição de crédito**, no qual
+   famílias pobres sub-investem em educação não por falta de habilidade ou retorno, mas
+   porque enfrentam custos de capital mais altos.
+
+4. O valor econômico da educação para muitas crianças pode estar sendo **significativamente
+   subestimado** pelas estimativas convencionais — com implicações diretas para políticas de
+   acesso ao ensino superior.
+
+Resumindo, 
+Card mostrou que estudar gera um ganho de salário maior do que os economistas pensavam, 
+especialmente para jovens de famílias mais pobres, que muitas vezes estudam menos por 
+falta de dinheiro e não por falta de capacidade.
+
+
+---
+
+# Referências
+
+- **Becker, Gary S.** (1967). *Human Capital and the Personal Distribution of Income*. University of Michigan Press.
+- **Card, David** (1993). *Using Geographic Variation in College Proximity to Estimate the Return to Schooling*. NBER Working Paper No. 4483.
+- **Card, David e Alan B. Krueger** (1992). "Does School Quality Matter? Returns to Education and the Characteristics of Public Schools in the United States." *Journal of Political Economy*, 100(1): 1–40.
+- **Griliches, Zvi** (1977). "Estimating the Returns to Schooling: Some Econometric Problems." *Econometrica*, 45(1): 1–22.
+- **Angrist, Joshua D. e Alan B. Krueger** (1991). "Does Compulsory Schooling Affect Schooling and Earnings?" *Quarterly Journal of Economics*, 106(4): 979–1014.
+- **Angrist, Joshua D. e Guido W. Imbens** (1994). "Identification and Estimation of Local Average Treatment Effects." *Econometrica*, 62(2): 467–475.
