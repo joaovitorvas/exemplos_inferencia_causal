@@ -36,7 +36,7 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(kableExtra)
 library(patchwork)
-library(scales)
+library(scales) 
 library(ggtext)
 
 # Tema global ggplot
