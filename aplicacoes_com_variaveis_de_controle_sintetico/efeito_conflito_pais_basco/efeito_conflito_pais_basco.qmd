@@ -1,0 +1,163 @@
+---
+title: "Efeito dos conflitos no país Basco"
+author: "João Vitor Vasconcelos Lima"
+lang: pt
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    number-sections: true
+    code-fold: false
+    self-contained: true
+execute:
+  warning: false
+  message: false
+---
+
+Esse documento apresenta uma aplicação do método de Controle Sintético para avaliar o efeito causal dos conflitos no País Basco (entre os anos de 1960 e 1997). O objetivo é comparar o desempenho econômico do País Basco com um **contrafactual sintético**, construído a partir de outras regiões da Espanha que não sofreram os impactos dos conflitos.
+
+A ideia de uma variavél de controle sintético é criar um **contrafactual** que represente o que teria acontecido com a unidade tratada (neste caso, o País Basco) na ausência do tratamento (nesse caso os conflitos). O método utiliza uma combinação ponderada de unidades de controle para construir esse contrafactual. A ideia é que, ao comparar o desempenho do País Basco com o seu contrafactual sintético, podemos inferir o efeito dos conflitos sobre a economia da região.
+
+O **confractual** é construído a partir de uma combinação ponderada de outras regiões da Espanha que não sofreram os mesmos impactos dos conflitos. A seguir, apresentamos a preparação dos dados, a aplicação do modelo e os resultados obtidos. Os pesos são definidos a partir de métodos númericos que minimizam a diferença entre o País Basco e o contrafactual sintético antes do início dos conflitos. A seguir, apresentamos a preparação dos dados, a aplicação do modelo e os resultados obtidos.
+
+Essa aplicação é baseada no artigo "The Economic Costs of Conflict: Evidence from the Basque Country" de Alberto Abadie e Javier Gardeazabal (2003), publicado no American Economic Review. O artigo original pode ser acessado [aqui](https://www.aeaweb.org/articles?id=10.1257/000282803321455188).
+
+# Preparação dos Dados
+
+```{r}
+#| label: preparacao-dados
+#| results: hide
+
+library(tidyverse)
+library(ggplot2)    
+library(Synth)
+library(knitr)
+
+data(basque)
+
+# Preparando os dados para o Controle Sintético
+dados_preparados <- dataprep(
+  foo = basque, 
+  
+  predictors = c("school.illit", "school.prim", "school.med",
+                 "school.high", "school.post.high", "invest"),
+  predictors.op = "mean", 
+  time.predictors.prior = 1964:1969,
+  
+  special.predictors = list(
+    list("gdpcap", 1960:1969, "mean"),
+    list("sec.agriculture", 1961:1969, "mean"),
+    list("sec.energy", 1961:1969, "mean"),
+    list("sec.industry", 1961:1969, "mean"),
+    list("sec.construction", 1961:1969, "mean"),
+    list("sec.services.venta", 1961:1969, "mean"),
+    list("sec.services.nonventa", 1961:1969, "mean"),
+    list("popdens", 1969, "mean")
+  ),
+  
+  dependent = "gdpcap", # variável dependente
+  unit.variable = "regionno", 
+  unit.names.variable = "regionname",
+  time.variable = "year",
+  
+  treatment.identifier = 17, 
+  controls.identifier = c(2:16, 18), 
+  
+  time.optimize.ssr = 1960:1969,
+  time.plot = 1955:1997
+)
+```
+
+# Aplicação do Modelo e Gráfico
+
+```{r}
+#| label: modelo-e-grafico
+#| fig-align: center
+
+# 1. Rodando o algoritmo de otimização capturando a saída para sumir com os logs do C
+invisible(capture.output({
+  resultado_synth <- synth(data.prep.obj = dados_preparados)
+}))
+
+# 2. Gerando o gráfico clássico da divergência
+path.plot(synth.res = resultado_synth,
+          dataprep.res = dados_preparados,
+          Ylab = "PIB per capita real em milhares (1986 USD)",
+          Xlab = "Ano",
+          Legend = c("País Basco", "País Basco Sintético"),
+          Legend.position = "bottomright")
+
+# Adicionando uma linha vertical no ano em que o terrorismo escalou
+abline(v = 1975, lty = 2, col = "red") 
+```
+
+# Matriz de Pesos e Resultados Numéricos
+
+```{r}
+#| label: tabelas-de-pesos
+
+# Extraindo as tabelas de resultados do pacote Synth
+tabelas <- synth.tab(synth.res = resultado_synth, 
+                        dataprep.res = dados_preparados)
+
+# Exibindo de forma limpa apenas as regiões que receberam peso positivo
+pesos_regioes <- as.data.frame(tabelas$tab.w) %>%
+  filter(w.weights > 0.001) %>%
+  arrange(desc(w.weights)) %>%
+  select(Cidade = unit.names, Pesos = w.weights)
+
+knitr::kable(pesos_regioes, caption = "Regiões componentes do País Basco Sintético e seus respectivos pesos (W)")
+
+```
+
+# Comparação Anual: País Basco Real vs. Contrafactual Sintético
+
+```{r}
+
+anos <- as.numeric(rownames(dados_preparados$Y1plot))
+real <- as.vector(dados_preparados$Y1plot)
+
+# Calculando a série sintética usando os pesos ótimos do modelo
+pesos_w <- resultado_synth$solution.w
+sintetico <- as.vector(dados_preparados$Y0plot %*% pesos_w)
+
+tabela_comparacao <- data.frame(
+  Ano = anos,
+  Real = real,
+  Sintetico = sintetico
+) %>%
+  mutate(
+    Gap = Real - Sintetico,
+    Gap_Percentual = (Gap / Sintetico) * 100
+  )
+
+# Filtrando para exibição a partir de 1970
+tabela_exibicao <- tabela_comparacao %>% 
+  filter(Ano >= 1970)
+
+# Renderizando a tabela formatada
+kable(tabela_exibicao, 
+      digits = 2, 
+      col.names = c("Ano", "PIB Real (Basco)", "PIB Sintético", "Gap Absoluto", "Gap (%)"),
+      caption = "Comparação Anual: País Basco Real vs. Contrafactual Sintético")
+
+# Calculando e imprimindo o ACE (Efeito Médio do Tratamento) pós-1975
+ace_pos_1975 <- tabela_comparacao %>%
+  filter(Ano >= 1975) %>%
+  summarise(
+    ACE_Absoluto = mean(Gap),
+    ACE_Percentual = mean(Gap_Percentual)
+  )
+
+tabela_ace <- data.frame(
+  Métrica = c("Queda Média Absoluta em milhares (1986 USD)", "Queda Média Relativa (%)"),
+  Estimativa = c(ace_pos_1975$ACE_Absoluto, ace_pos_1975$ACE_Percentual)
+)
+
+kable(tabela_ace, 
+      digits = 2, 
+      col.names = c("Indicador de Impacto", "Valor Médio (1975-1997)"),
+      caption = "Estimativa do Efeito Causal Médio do Tratamento (ACE) no Período Pós-Conflito")
+
+```

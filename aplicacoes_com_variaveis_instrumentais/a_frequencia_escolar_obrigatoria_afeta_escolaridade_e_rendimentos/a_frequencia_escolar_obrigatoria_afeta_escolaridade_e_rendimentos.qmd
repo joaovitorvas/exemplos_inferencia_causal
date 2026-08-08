@@ -57,7 +57,7 @@ knitr::kable(head(ak91))
 ### Dicionário de Variáveis
 
 | Variável | Tipo | Descrição |
-|:---|:---|:---|
+|:-----------------------|:-----------------------|:-----------------------|
 | `log_wage` | Contínua | Logaritmo natural do salário semanal. |
 | `years_of_schooling` | Discreta | Anos totais de educação formal concluídos. |
 | `quarter_of_birth` | Categórica | Trimestre de nascimento do indivíduo (1 a 4). |
@@ -121,8 +121,8 @@ Se o instrumento for **fraco** — ou seja, se o trimestre de nascimento tiver u
 
 Para garantir que estamos seguros, usamos o argumento `diagnostics = TRUE` na função `ivreg`, que executa um **Teste F** no Primeiro Estágio.
 
--   **A Regra de Ouro (Stock-Yogo):** A literatura econométrica estabelece que a **Estatística F deve ser maior que 10** ($F > 10$).
--   Se observar o output do nosso modelo na linha `Weak instruments`, verá que a nossa Estatística F é de aproximadamente **48.99**, com um p-valor ínfimo.
+- **A Regra de Ouro (Stock-Yogo):** A literatura econométrica estabelece que a **Estatística F deve ser maior que 10** ($F > 10$).
+- Se observar o output do nosso modelo na linha `Weak instruments`, verá que a nossa Estatística F é de aproximadamente **48.99**, com um p-valor ínfimo.
 
 Isto prova que a lei de escolaridade obrigatória aliada ao trimestre de nascimento não é apenas uma teoria curiosa; é um **instrumento extremamente forte e robusto** para mover a escolaridade!
 
